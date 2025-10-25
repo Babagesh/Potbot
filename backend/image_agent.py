@@ -271,36 +271,19 @@ Return JSON:
 async def analyze_image_with_agent(
     image_path: str,
     latitude: float,
-    longitude: float,
-    use_mock: bool = False
+    longitude: float
 ) -> Dict[str, Any]:
     """
-    Main entry point for image analysis
-    Supports both real Groq Vision API and mock mode
+    Main entry point for image analysis using Groq Vision API
 
     Args:
         image_path: Path to image file
         latitude: GPS latitude
         longitude: GPS longitude
-        use_mock: If True, return mock data (for testing without API key)
 
     Returns:
         Analysis results dictionary
     """
-    # Mock mode for testing
-    if use_mock:
-        import random
-        print("⚠️  Using MOCK data - Groq API not queried")
-        mock_category = random.choice(VALID_CATEGORIES)
-        return {
-            "category": mock_category,
-            "Lat": latitude,
-            "Long": longitude,
-            "Text_Description": f"Mock analysis: Detected {mock_category.lower()} at this location.",
-            "confidence": round(0.70 + (random.random() * 0.25), 2)
-        }
-
-    # Use Groq Vision API
     return await analyze_image_with_groq(image_path, latitude, longitude)
 
 

@@ -15,9 +15,6 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Configuration
-USE_MOCK_AGENT = os.getenv("USE_MOCK_AGENT", "false").lower() == "true"
-
 # Register HEIF opener for HEIC support
 register_heif_opener()
 
@@ -130,10 +127,10 @@ async def submit_civic_issue(
     tracking_id = f"REPORT-{uuid.uuid4().hex[:8].upper()}"
 
     try:
-        # Analyze image with AgentVerse agent
-        print(f"Starting AgentVerse analysis for {tracking_id}...")
+        # Analyze image with Groq Vision AI
+        print(f"Starting AI analysis for {tracking_id}...")
         analysis_results = await analyze_image_with_agent(
-            file_path, latitude, longitude, use_mock=USE_MOCK_AGENT
+            file_path, latitude, longitude
         )
 
         print(f"Analysis complete: {analysis_results['category']}")
