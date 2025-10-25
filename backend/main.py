@@ -76,7 +76,16 @@ async def submit_civic_issue(
         content = await image.read()
         f.write(content)
     
-    return {"message": f"Image saved as {filename}"}
+    # Generate unique report ID
+    report_id = str(uuid.uuid4())
+    
+    # Return proper PipelineResponse format
+    return PipelineResponse(
+        report_id=report_id,
+        status="uploaded",
+        message=f"Image saved as {filename}",
+        created_at=datetime.now()
+    )
     
         
        
