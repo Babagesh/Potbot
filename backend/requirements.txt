@@ -5,3 +5,4 @@ aiofiles==23.2.1
 Pillow>=10.0.0
 pillow-heif>=1.1.0
 python-dotenv==1.0.0
+groq>=0.4.0

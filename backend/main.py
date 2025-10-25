@@ -9,6 +9,11 @@ from datetime import datetime
 from PIL import Image
 import io
 from pillow_heif import register_heif_opener
+from image_agent import analyze_image_with_agent
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Register HEIF opener for HEIC support
 register_heif_opener()
@@ -69,7 +74,7 @@ def process_mobile_image(image_file: UploadFile) -> tuple[str, str]:
 
 # Pydantic models
 class PipelineResponse(BaseModel):
-    report_id: str
+    tracking_id: str
     status: str
     message: str
     issue_type: Optional[str] = None
@@ -77,6 +82,8 @@ class PipelineResponse(BaseModel):
     tracking_number: Optional[str] = None
     social_post_url: Optional[str] = None
     created_at: datetime
+
+
 
 # In-memory storage (replace with database)
 reports_db = {}
@@ -105,9 +112,9 @@ async def submit_civic_issue(
     # TODO: Implement the full pipeline
     # 1. Generate unique report ID
     # 2. Save uploaded image to uploads directory
-    # 3. Store report data in database
-    # 4. Call Agentverse agent for analysis
-    # 5. Run Playwright script to submit form
+    # 3. Call Agentverse agent for analysis
+    # 4. Run Playwright script to submit form
+    # 5. Store report data in database
     # 6. Post to Twitter with tracking number
     # 7. Update database with all results
     # 8. Return success response
@@ -116,12 +123,67 @@ async def submit_civic_issue(
     processed_filename, file_path = process_mobile_image(image)
     print(f'Mobile image processed and saved as {processed_filename} (GPS: {latitude}, {longitude})')
 
-    image_analysis_results = await analyze_with_agent(file_path, latitude, longitude)
-    
-    
-    
-        
-       
+    # Generate unique tracking ID
+    tracking_id = f"REPORT-{uuid.uuid4().hex[:8].upper()}"
+
+    try:
+        # Analyze image with Groq Vision AI
+        print(f"Starting AI analysis for {tracking_id}...")
+        analysis_results = await analyze_image_with_agent(
+            file_path, latitude, longitude
+        )
+
+        print(f"Analysis complete: {analysis_results['category']}")
+
+        # Check if spam/non-civic infrastructure image
+        if analysis_results['category'] == "None":
+            print(f"Image rejected: {analysis_results['Text_Description']}")
+            response = PipelineResponse(
+                tracking_id=tracking_id,
+                status="rejected",
+                message=f"Image rejected: {analysis_results['Text_Description']}",
+                issue_type=None,
+                confidence=0.0,
+                tracking_number=None,
+                social_post_url=None,
+                created_at=datetime.now()
+            )
+        else:
+            # Valid civic infrastructure issue detected
+            response = PipelineResponse(
+                tracking_id=tracking_id,
+                status="analyzed",
+                message=f"Issue detected: {analysis_results['category']}. {analysis_results['Text_Description']}",
+                issue_type=analysis_results['category'],
+                confidence=analysis_results.get('confidence', 0.85),
+                tracking_number=None,  # TODO: Add after form submission
+                social_post_url=None,   # TODO: Add after Twitter post
+                created_at=datetime.now()
+            )
+
+    except Exception as e:
+        # If agent analysis fails, return basic response
+        print(f"Agent analysis failed: {str(e)}")
+        response = PipelineResponse(
+            tracking_id=tracking_id,
+            status="received",
+            message=f"Issue submitted successfully. Analysis failed: {str(e)}",
+            issue_type=None,
+            confidence=None,
+            tracking_number=None,
+            social_post_url=None,
+            created_at=datetime.now()
+        )
+
+    #Call script for form submission and get tracking number
+
+    #Post to twitter
+    #Update database
+
+    # Store in database (in-memory for now)
+    reports_db[tracking_id] = response.model_dump()
+
+    return response
 
 # ASYNC HELPER FUNCTIONS (implement these)
 async def analyze_with_agent(image_path: str, lat: float, lng: float):
