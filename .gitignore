@@ -37,10 +37,18 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# Environment files (NEVER commit these - contain API keys)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 frontend/.env*
 backend/.env*
+
+# Supabase local development files
+supabase/.branches
+supabase/.temp
 
 # vercel
 .vercel

@@ -1,0 +1,39 @@
+{
+  "street": {
+    "success": true,
+    "formType": "Street",
+    "completedSteps": [
+      "Navigated to form",
+      "Clicked Report button",
+      "Handled emergency disclaimer",
+      "Selected issue type (Street)",
+      "Completed location workflow",
+      "Filled next page form",
+      "Handled contact information page",
+      "Completed final submission",
+      "Extracted service request number and address"
+    ],
+    "serviceRequestNumber": "101002858838",
+    "requestAddress": "995 GUERRERO ST  SAN FRANCISCO, CA 94110",
+    "submittedAt": "2025-10-25T21:11:40.468Z"
+  },
+  "sidewalk": {
+    "success": true,
+    "formType": "Sidewalk/Curb",
+    "completedSteps": [
+      "Navigated to form",
+      "Clicked Report button",
+      "Handled emergency disclaimer",
+      "Selected issue type (Sidewalk/Curb)",
+      "Completed location workflow",
+      "Filled next page form",
+      "Handled contact information page",
+      "Completed final submission",
+      "Extracted service request number and address"
+    ],
+    "serviceRequestNumber": "101002858846",
+    "requestAddress": "995 GUERRERO ST  SAN FRANCISCO, CA 94110",
+    "submittedAt": "2025-10-25T21:12:32.683Z"
+  },
+  "testedAt": "2025-10-25T21:12:32.835Z"
+}
