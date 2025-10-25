@@ -110,7 +110,7 @@ export default function ImageUpload() {
         formData.append('longitude', '0');
       }
 
-      const response = await fetch('http://localhost:3001/api/submit-civic-issue', {
+      const response = await fetch('http://127.0.0.1:8000/api/submit-civic-issue', {
         method: 'POST',
         body: formData,
       });
