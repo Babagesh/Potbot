@@ -6,6 +6,12 @@ import os
 import uuid
 import asyncio
 from datetime import datetime
+from PIL import Image
+import io
+from pillow_heif import register_heif_opener
+
+# Register HEIF opener for HEIC support
+register_heif_opener()
 
 app = FastAPI(title="CivicSight API", version="1.0.0")
 
@@ -20,6 +26,46 @@ app.add_middleware(
 
 # Create uploads folder
 os.makedirs("uploads", exist_ok=True)
+
+def process_mobile_image(image_file: UploadFile) -> tuple[str, str]:
+    """
+    Process mobile images (HEIC, JPEG) and convert to standard format
+    Returns: (processed_filename, file_path)
+    """
+    # Read the uploaded file
+    content = image_file.file.read()
+    image_file.file.seek(0)  # Reset file pointer
+    
+    # Get original filename and extension
+    original_filename = image_file.filename or "unknown"
+    original_ext = os.path.splitext(original_filename)[1].lower()
+    
+    try:
+        # Open image with PIL (handles HEIC, JPEG, PNG, etc.)
+        image = Image.open(io.BytesIO(content))
+        
+        # Convert to RGB if necessary (HEIC -> RGB)
+        if image.mode in ('RGBA', 'LA', 'P'):
+            image = image.convert('RGB')
+        
+        # Generate new filename (always save as .jpg for consistency)
+        processed_filename = f"processed_{uuid.uuid4().hex[:8]}.jpg"
+        file_path = os.path.join("uploads", processed_filename)
+        
+        # Save as JPEG (universally compatible)
+        image.save(file_path, "JPEG", quality=85, optimize=True)
+        
+        return processed_filename, file_path
+        
+    except Exception as e:
+        # If PIL can't handle it, save original file
+        fallback_filename = f"original_{uuid.uuid4().hex[:8]}{original_ext}"
+        file_path = os.path.join("uploads", fallback_filename)
+        
+        with open(file_path, "wb") as f:
+            f.write(content)
+            
+        return fallback_filename, file_path
 
 # Pydantic models
 class PipelineResponse(BaseModel):
@@ -66,26 +112,13 @@ async def submit_civic_issue(
     # 7. Update database with all results
     # 8. Return success response
     
-    # Save uploaded image with GPS coordinates in filename
-    file_extension = os.path.splitext(image.filename)[1] if image.filename else ".jpg"
-    filename = f"Lat_{latitude}_Long_{longitude}{file_extension}"
-    file_path = os.path.join("uploads", filename)
+    # Process mobile image (handles HEIC, JPEG, etc.)
+    processed_filename, file_path = process_mobile_image(image)
+    print(f'Mobile image processed and saved as {processed_filename} (GPS: {latitude}, {longitude})')
+
+    image_analysis_results = await analyze_with_agent(file_path, latitude, longitude)
     
-    # Save the image file
-    with open(file_path, "wb") as f:
-        content = await image.read()
-        f.write(content)
     
-    # Generate unique report ID
-    report_id = str(uuid.uuid4())
-    
-    # Return proper PipelineResponse format
-    return PipelineResponse(
-        report_id=report_id,
-        status="uploaded",
-        message=f"Image saved as {filename}",
-        created_at=datetime.now()
-    )
     
         
        
