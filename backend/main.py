@@ -178,6 +178,11 @@ async def submit_civic_issue(
             created_at=datetime.now()
         )
 
+    #Call script for form submission and get tracking number
+
+    #Post to twitter
+    #Update database
+
     # Store in database (in-memory for now)
     reports_db[tracking_id] = response.model_dump()
 
