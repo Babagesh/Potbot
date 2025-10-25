@@ -1,26 +1,41 @@
 {
-  "name": "karenai",
-  "version": "0.1.0",
+  "name": "infrastructure-damage-reporter",
+  "version": "1.0.0",
+  "description": "Infrastructure damage reporting application with frontend and backend",
   "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "dev": "npm run dev --workspace=frontend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev:backend": "npm run dev --workspace=backend",
+    "build": "npm run build --workspace=frontend",
+    "build:frontend": "npm run build --workspace=frontend",
+    "build:backend": "npm run build --workspace=backend",
+    "start": "npm run start --workspace=frontend",
+    "start:frontend": "npm run start --workspace=frontend",
+    "start:backend": "npm run start --workspace=backend",
+    "lint": "npm run lint --workspace=frontend && npm run lint --workspace=backend",
+    "lint:frontend": "npm run lint --workspace=frontend",
+    "lint:backend": "npm run lint --workspace=backend",
+    "install:frontend": "npm install --workspace=frontend",
+    "install:backend": "npm install --workspace=backend",
+    "clean": "rm -rf frontend/node_modules frontend/.next backend/node_modules backend/dist"
   },
-  "dependencies": {
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "next": "16.0.0"
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Babagesh/Potbot.git"
   },
-  "devDependencies": {
-    "typescript": "^5",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
-    "eslint": "^9",
-    "eslint-config-next": "16.0.0"
-  }
+  "keywords": [
+    "infrastructure",
+    "damage-reporting",
+    "computer-vision",
+    "nextjs",
+    "typescript"
+  ],
+  "author": "Your Team",
+  "license": "MIT"
 }

@@ -1,0 +1,12 @@
+[00:00:01.402] Server  LOG      ✓ Ready in 1083ms
+[00:02:18.000] Server  LOG      ○ Compiling / ...
+[00:02:18.334] Server  WARN    Couldn't load fs
+[00:02:18.334] Server  WARN    Couldn't load zlib
+[00:02:18.822] Server  WARN     ⚠ Cross origin request detected from 172.20.10.2 to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+[00:02:18.897] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:05:43.321] Server  LOG      ✓ Compiled in 203ms
+[00:06:03.281] Server  LOG      ✓ Compiled in 120ms
+[00:29:57.333] Server  WARN    Couldn't load fs
+[00:29:57.335] Server  WARN    Couldn't load zlib
+[00:30:00.022] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
