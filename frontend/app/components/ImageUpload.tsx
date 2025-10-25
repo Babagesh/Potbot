@@ -3,7 +3,6 @@
 import { useState, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { extractMetadata } from '../utils/imageMetadata';
-import { backendService } from '../services/backendService';
 
 interface ImageMetadata {
   filename: string;
@@ -98,14 +97,34 @@ export default function ImageUpload() {
 
     setLoading(true);
     try {
-      // Use the backend service to upload the image
-      const result = await backendService.uploadImage(selectedImage, metadata);
+      // Direct upload to FastAPI backend
+      const formData = new FormData();
+      formData.append('image', selectedImage);
+      
+      // Add GPS coordinates if available
+      if (metadata.location) {
+        formData.append('latitude', metadata.location.latitude.toString());
+        formData.append('longitude', metadata.location.longitude.toString());
+      } else {
+        formData.append('latitude', '0');
+        formData.append('longitude', '0');
+      }
 
+      const response = await fetch('http://localhost:3001/api/submit-civic-issue', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
       console.log('Upload successful:', result);
+      
       alert(`Image uploaded successfully! 
-        File ID: ${result.data.id}
-        ${metadata.location ? `Location: ${metadata.location.latitude.toFixed(6)}, ${metadata.location.longitude.toFixed(6)}` : 'No location data'}
-        Ready for computer vision processing.`);
+        ${result.message}
+        ${metadata.location ? `Location: ${metadata.location.latitude.toFixed(6)}, ${metadata.location.longitude.toFixed(6)}` : 'No location data'}`);
       
       // Reset form after successful upload
       resetForm();
