@@ -22,9 +22,17 @@
     "lint:backend": "npm run lint --workspace=backend",
     "install:frontend": "npm install --workspace=frontend",
     "install:backend": "npm install --workspace=backend",
-    "clean": "rm -rf frontend/node_modules frontend/.next backend/node_modules backend/dist"
+    "clean": "rm -rf frontend/node_modules frontend/.next backend/node_modules backend/dist",
+    "automation:scrape": "node scripts/sf-forms/form-scraper.js",
+    "automation:test": "node scripts/sf-forms/test.js",
+    "automation:test-scrape": "node scripts/sf-forms/test.js scrape",
+    "automation:test-pothole": "node scripts/sf-forms/test.js test pothole",
+    "automation:test-sidewalk": "node scripts/sf-forms/test.js test sidewalk",
+    "automation:test-graffiti": "node scripts/sf-forms/test.js test graffiti",
+    "automation:demo": "node scripts/sf-forms/demo.js",
+    "automation:demo-validation": "node scripts/sf-forms/demo.js validation",
+    "automation:demo-config": "node scripts/sf-forms/demo.js config"
   },
-  "devDependencies": {},
   "repository": {
     "type": "git",
     "url": "https://github.com/Babagesh/Potbot.git"
@@ -37,5 +45,10 @@
     "typescript"
   ],
   "author": "Your Team",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@playwright/test": "^1.56.1",
+    "exif-parser": "^0.1.12",
+    "playwright": "^1.56.1"
+  }
 }

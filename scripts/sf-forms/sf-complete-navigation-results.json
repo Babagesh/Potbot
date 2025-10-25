@@ -1,0 +1,66 @@
+{
+  "pothole": {
+    "url": "https://www.sf.gov/report-pothole-and-street-issues",
+    "success": true,
+    "initialUrl": "https://www.sf.gov/report-pothole-and-street-issues",
+    "afterReportUrl": "https://sanfrancisco.form.us.empro.verintcloudservices.com/form/auto/pw_street_sidewalkdefect?Issue=street_defect&Nature_of_request=pavement_defect",
+    "finalFormUrl": "https://sanfrancisco.form.us.empro.verintcloudservices.com/form/auto/pw_street_sidewalkdefect?Issue=street_defect&Nature_of_request=pavement_defect",
+    "reportButtonSelector": "a:has-text(\"Report\")",
+    "nextButtonSelector": "button:has-text(\"Next\")",
+    "testedAt": "2025-10-25T08:42:35.060Z"
+  },
+  "sidewalk": {
+    "url": "https://www.sf.gov/report-curb-and-sidewalk-problems",
+    "success": true,
+    "initialUrl": "https://www.sf.gov/report-curb-and-sidewalk-problems",
+    "afterReportUrl": "https://sanfrancisco.form.us.empro.verintcloudservices.com/form/auto/pw_street_sidewalkdefect?Issue=sidewalk_and_curb",
+    "finalFormUrl": "https://sanfrancisco.form.us.empro.verintcloudservices.com/form/auto/pw_street_sidewalkdefect?Issue=sidewalk_and_curb",
+    "reportButtonSelector": "a:has-text(\"Report\")",
+    "nextButtonSelector": "button:has-text(\"Next\")",
+    "testedAt": "2025-10-25T08:42:48.783Z"
+  },
+  "graffiti": {
+    "url": "https://www.sf.gov/report-graffiti-issues",
+    "success": false,
+    "error": "Next button not found: No visible and enabled next button found",
+    "currentUrl": "https://www.sf.gov/report-issue-parking-or-traffic-sign",
+    "testedAt": "2025-10-25T08:42:59.432Z"
+  },
+  "trash": {
+    "url": "https://www.sf.gov/report-garbage-container-issues",
+    "success": true,
+    "initialUrl": "https://www.sf.gov/report-garbage-container-issues",
+    "afterReportUrl": "https://sanfrancisco.form.us.empro.verintcloudservices.com/form/auto/pw_litter_receptacles?sel_Loc_search=loc_yes",
+    "finalFormUrl": "https://sanfrancisco.form.us.empro.verintcloudservices.com/form/auto/pw_litter_receptacles?sel_Loc_search=loc_yes",
+    "reportButtonSelector": "a:has-text(\"Report\")",
+    "nextButtonSelector": "button:has-text(\"Next\")",
+    "testedAt": "2025-10-25T08:43:13.246Z"
+  },
+  "streetMarkings": {
+    "url": "https://www.sf.gov/report-faded-street-and-pavement-markings",
+    "success": false,
+    "error": "Next button not found: No visible and enabled next button found",
+    "currentUrl": "https://www.sf.gov/request-new-street-markings",
+    "testedAt": "2025-10-25T08:43:23.663Z"
+  },
+  "streetlight": {
+    "url": "https://www.sf.gov/report-problem-streetlight",
+    "success": true,
+    "initialUrl": "https://www.sf.gov/report-problem-streetlight",
+    "afterReportUrl": "https://sanfrancisco.form.us.empro.verintcloudservices.com/form/auto/puc_streetlights",
+    "finalFormUrl": "https://sanfrancisco.form.us.empro.verintcloudservices.com/form/auto/puc_streetlights",
+    "reportButtonSelector": "a:has-text(\"Report\")",
+    "nextButtonSelector": "button:has-text(\"Next\")",
+    "testedAt": "2025-10-25T08:43:37.503Z"
+  },
+  "fallenTree": {
+    "url": "https://www.sf.gov/report-damaged-or-fallen-tree",
+    "success": true,
+    "initialUrl": "https://www.sf.gov/report-damaged-or-fallen-tree",
+    "afterReportUrl": "https://sanfrancisco.form.us.empro.verintcloudservices.com/form/auto/pw_tree_maintenance",
+    "finalFormUrl": "https://sanfrancisco.form.us.empro.verintcloudservices.com/form/auto/pw_tree_maintenance",
+    "reportButtonSelector": "a:has-text(\"Report\")",
+    "nextButtonSelector": "button:has-text(\"Next\")",
+    "testedAt": "2025-10-25T08:43:51.322Z"
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "pothole": {
+    "url": "https://www.sf.gov/report-pothole-and-street-issues",
+    "success": true,
+    "newUrl": "https://sanfrancisco.form.us.empro.verintcloudservices.com/form/auto/pw_street_sidewalkdefect?Issue=street_defect&Nature_of_request=pavement_defect",
+    "selector": "a:has-text(\"Report\")",
+    "testedAt": "2025-10-25T08:31:49.811Z"
+  },
+  "sidewalk": {
+    "url": "https://www.sf.gov/report-curb-and-sidewalk-problems",
+    "success": true,
+    "newUrl": "https://sanfrancisco.form.us.empro.verintcloudservices.com/form/auto/pw_street_sidewalkdefect?Issue=sidewalk_and_curb",
+    "selector": "a:has-text(\"Report\")",
+    "testedAt": "2025-10-25T08:32:00.552Z"
+  },
+  "graffiti": {
+    "url": "https://www.sf.gov/report-graffiti-issues",
+    "success": true,
+    "newUrl": "https://www.sf.gov/report-issue-parking-or-traffic-sign",
+    "selector": "a:has-text(\"Report\")",
+    "testedAt": "2025-10-25T08:32:11.181Z"
+  },
+  "trash": {
+    "url": "https://www.sf.gov/report-garbage-container-issues",
+    "success": true,
+    "newUrl": "https://sanfrancisco.form.us.empro.verintcloudservices.com/form/auto/pw_litter_receptacles?sel_Loc_search=loc_yes",
+    "selector": "a:has-text(\"Report\")",
+    "testedAt": "2025-10-25T08:32:21.885Z"
+  },
+  "streetMarkings": {
+    "url": "https://www.sf.gov/report-faded-street-and-pavement-markings",
+    "success": true,
+    "newUrl": "https://www.sf.gov/request-new-street-markings",
+    "selector": "a:has-text(\"Report\")",
+    "testedAt": "2025-10-25T08:32:32.391Z"
+  },
+  "streetlight": {
+    "url": "https://www.sf.gov/report-problem-streetlight",
+    "success": true,
+    "newUrl": "https://sanfrancisco.form.us.empro.verintcloudservices.com/form/auto/puc_streetlights",
+    "selector": "a:has-text(\"Report\")",
+    "testedAt": "2025-10-25T08:32:42.899Z"
+  },
+  "fallenTree": {
+    "url": "https://www.sf.gov/report-damaged-or-fallen-tree",
+    "success": true,
+    "newUrl": "https://sanfrancisco.form.us.empro.verintcloudservices.com/form/auto/pw_tree_maintenance",
+    "selector": "a:has-text(\"Report\")",
+    "testedAt": "2025-10-25T08:32:54.281Z"
+  }
+}
