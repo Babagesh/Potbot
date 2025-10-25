@@ -44,7 +44,9 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 frontend/.env*
-backend/.env*
+backend/.env
+backend/.env.*
+!backend/.env.example
 
 # Supabase local development files
 supabase/.branches

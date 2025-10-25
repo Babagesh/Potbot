@@ -22,11 +22,18 @@ Your app now uses **Groq's Llama 4 Vision API** for fast, reliable civic issue d
 
 ### 2. Add Key to .env
 
-Edit `backend/.env` and add your key:
+Copy the example file and add your key:
 
 ```bash
+cd backend
+cp .env.example .env
+# Edit .env and add your Groq API key
+```
+
+Your `.env` should look like:
+```bash
 GROQ_API_KEY=gsk_your_actual_key_here
-USE_MOCK_AGENT=false
+CONFIDENCE_THRESHOLD=0.6
 ```
 
 ### 3. Restart Your Backend
@@ -60,15 +67,15 @@ Groq offers generous free usage:
 
 More than enough for development and demos!
 
-## Mock Mode (No API Key Needed)
+## Confidence Threshold
 
-If you don't want to get an API key yet, keep mock mode enabled:
+Adjust detection strictness by changing `CONFIDENCE_THRESHOLD` in `.env`:
 
-```bash
-USE_MOCK_AGENT=true
-```
+- `0.5` - More lenient (may have false positives)
+- `0.6` - Balanced (recommended)
+- `0.7` - Very strict (fewer false positives)
 
-This will return realistic fake data for testing.
+See [VALIDATION_LOGIC.md](./VALIDATION_LOGIC.md) for details.
 
 ## Models Available
 

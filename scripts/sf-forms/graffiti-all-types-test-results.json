@@ -1,0 +1,29 @@
+[
+  {
+    "testCase": "Graffiti on Private Property",
+    "success": true,
+    "serviceRequestNumber": "101001610687",
+    "address": "995 GUERRERO ST  SAN FRANCISCO, CA 94110",
+    "issueType": "Graffiti on Private Property",
+    "requestRegarding": "Not Offensive (no racial slurs or profanity)",
+    "requestType": "Building - Commercial"
+  },
+  {
+    "testCase": "Graffiti on Public Property",
+    "success": true,
+    "serviceRequestNumber": "101001610687",
+    "address": "995 GUERRERO ST  SAN FRANCISCO, CA 94110",
+    "issueType": "Graffiti on Public Property",
+    "requestRegarding": "Not Offensive (no racial slurs or profanity)",
+    "requestType": "Pole"
+  },
+  {
+    "testCase": "Illegal Postings on Public Property",
+    "success": true,
+    "serviceRequestNumber": "101001610687",
+    "address": "995 GUERRERO ST  SAN FRANCISCO, CA 94110",
+    "issueType": "Illegal Postings on Public Property",
+    "requestRegarding": "Multiple Postings",
+    "requestType": "Pole"
+  }
+]

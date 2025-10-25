@@ -51,11 +51,17 @@ pip install -r requirements.txt
 
 ### 3. Configure Environment
 
-Create `.env` file:
+Copy the example file and add your API key:
 
 ```bash
-GROQ_API_KEY=your_groq_api_key_here
-USE_MOCK_AGENT=false
+cp .env.example .env
+# Edit .env and add your Groq API key
+```
+
+Your `.env` file should look like:
+```bash
+GROQ_API_KEY=gsk_your_actual_key_here
+CONFIDENCE_THRESHOLD=0.6
 ```
 
 ### 4. Run Server
@@ -100,15 +106,13 @@ backend/
 └── README.md           # This file
 ```
 
-## Mock Mode (No API Key)
+## Confidence Threshold
 
-For testing without a Groq API key, enable mock mode in `.env`:
+Adjust the strictness of issue detection by changing `CONFIDENCE_THRESHOLD` in `.env`:
 
-```bash
-USE_MOCK_AGENT=true
-```
-
-Returns realistic fake data for development.
+- `0.5` - More lenient (may have false positives)
+- `0.6` - Balanced (recommended)
+- `0.7` - Very strict (fewer false positives)
 
 ## Groq Free Tier Limits
 
