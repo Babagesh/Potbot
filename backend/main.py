@@ -13,6 +13,8 @@ from pillow_heif import register_heif_opener
 from image_agent import analyze_image_with_agent
 from brightdata_search import search_reporting_form
 from playwright_integration import submit_to_sfgov
+from form_submission_agent import submit_civic_issue_to_city
+from social_media_agent import publish_civic_issue_to_social_media
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -149,10 +151,12 @@ async def submit_civic_issue(
             file_path, latitude, longitude
         )
 
+        print(f"\n✅ Agent #1 Complete: {analysis_results['category']}")
         print(f"✅ Analysis complete: {analysis_results['category']} (confidence: {analysis_results.get('confidence', 0.85)})")
 
         # Check if spam/non-civic infrastructure image
         if analysis_results['category'] == "None":
+            print(f"⚠️ Image rejected: {analysis_results['Text_Description']}")
             print(f"❌ Image rejected: Not civic infrastructure")
             response = PipelineResponse(
                 tracking_id=tracking_id,
@@ -168,6 +172,73 @@ async def submit_civic_issue(
                 created_at=datetime.now()
             )
         else:
+            # ================================================================
+            # AGENT #2: Submit to City Department & Get Tracking Number
+            # ================================================================
+            print(f"\n{'='*60}")
+            print(f"📋 AGENT #2: Form Submission to City")
+            print(f"{'='*60}")
+            
+            form_submission_result = await submit_civic_issue_to_city(
+                category=analysis_results['category'],
+                description=analysis_results['Text_Description'],
+                latitude=latitude,
+                longitude=longitude,
+                confidence=analysis_results['confidence'],
+                image_path=file_path,
+                tracking_id=tracking_id
+            )
+            
+            city_tracking_number = form_submission_result['tracking_number']
+            address = form_submission_result['address']
+            
+            print(f"\n✅ Agent #2 Complete: {city_tracking_number}")
+            print(f"📍 Address: {address}")
+            
+            # ================================================================
+            # AGENT #3: Post to Social Media with AppLovin Optimization
+            # ================================================================
+            print(f"\n{'='*60}")
+            print(f"🐦 AGENT #3: Social Media Publishing")
+            print(f"{'='*60}")
+            
+            social_media_result = await publish_civic_issue_to_social_media(
+                # Agent #1 data
+                image_path=file_path,
+                category=analysis_results['category'],
+                description=analysis_results['Text_Description'],
+                latitude=latitude,
+                longitude=longitude,
+                confidence=analysis_results['confidence'],
+                tracking_id=tracking_id,
+                
+                # Agent #2 data
+                tracking_number=city_tracking_number,
+                address=address
+            )
+            
+            post_url = social_media_result.get('post_url')
+            
+            print(f"\n✅ Agent #3 Complete")
+            if post_url:
+                print(f"🔗 Post URL: {post_url}")
+            else:
+                print(f"⚠️ Social media post created (demo mode)")
+            
+            # ================================================================
+            # PIPELINE COMPLETE
+            # ================================================================
+            print(f"\n{'='*60}")
+            print(f"✅ ALL AGENTS COMPLETE - PIPELINE SUCCESS")
+            print(f"{'='*60}")
+            print(f"🆔 Tracking ID: {tracking_id}")
+            print(f"🔢 City Tracking: {city_tracking_number}")
+            print(f"📍 Address: {address}")
+            if post_url:
+                print(f"🐦 Social Media: {post_url}")
+            print(f"{'='*60}\n")
+            
+            # Build success response
             # Valid civic infrastructure issue detected
             issue_type = analysis_results['category']
             print(f"✓ Valid civic issue detected: {issue_type}")
@@ -238,11 +309,17 @@ async def submit_civic_issue(
                 message = f"Issue detected: {issue_type}. Form submission failed: {error}"
 
             response = PipelineResponse(
+                tracking_id=tracking_id,
+                status="completed",
+                message=f"Issue successfully reported and published! City tracking: {city_tracking_number}",
+                issue_type=analysis_results['category'],
                 tracking_id=final_tracking_id,  # Use SF.gov number if available
                 status=status,
                 message=message,
                 issue_type=issue_type,
                 confidence=analysis_results.get('confidence', 0.85),
+                tracking_number=city_tracking_number,
+                social_post_url=post_url,
                 reporting_url=reporting_url,
                 location_description=analysis_results.get('locationDescription', ''),
                 form_fields=analysis_results.get('formFields', {}),
@@ -255,12 +332,15 @@ async def submit_civic_issue(
         # Re-raise HTTPExceptions (form search failures, validation errors)
         raise
     except Exception as e:
-        # If agent analysis fails, return basic response
-        print(f"Agent analysis failed: {str(e)}")
+        # If any agent fails, return error response
+        print(f"\n❌ PIPELINE FAILED: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
         response = PipelineResponse(
             tracking_id=tracking_id,
-            status="received",
-            message=f"Issue submitted successfully. Analysis failed: {str(e)}",
+            status="error",
+            message=f"Pipeline error: {str(e)}",
             issue_type=None,
             confidence=None,
             reporting_url=None,
@@ -270,11 +350,6 @@ async def submit_civic_issue(
             social_post_url=None,
             created_at=datetime.now()
         )
-
-    #Call script for form submission and get tracking number
-
-    #Post to twitter
-    #Update database
 
     # Store in database (in-memory for now)
     reports_db[tracking_id] = response.model_dump()
