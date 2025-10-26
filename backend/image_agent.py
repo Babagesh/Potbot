@@ -106,69 +106,346 @@ async def analyze_image_with_groq(
         print(f"Encoding image: {image_path}")
         base64_image = encode_image_to_base64(image_path)
 
-        # Create structured prompt for JSON output with strict validation
-        prompt = f"""You are a civic infrastructure damage detector. Analyze this image taken at coordinates ({latitude}, {longitude}).
+        # Create structured prompt for JSON output with DECISION TREE and exact dropdown options
+        prompt = f"""You are a civic infrastructure damage detector for San Francisco's reporting system. Analyze this image taken at coordinates ({latitude}, {longitude}).
 
-STEP 1: Is this a civic infrastructure image?
-- Indoor scenes → "None"
-- Personal items (laptops, phones, food, people, pets) → "None"
-- Nature/landscapes without infrastructure → "None"
+🎯 DECISION TREE - Follow these steps EXACTLY:
 
-STEP 2: Identify the infrastructure type (if applicable):
-- Road/pavement
-- Sidewalk/walkway
-- Wall/building (public property)
-- Trash bin/dumpster
-- Street markings/crosswalk
-- Street light/lamp post
-- Tree near road/sidewalk
+═══════════════════════════════════════════════════════════════════════════════
+STEP 1: FILTER OUT NON-CIVIC ISSUES
+═══════════════════════════════════════════════════════════════════════════════
+If the image shows ANY of these, return category="None":
+- Indoor scenes (inside buildings, homes, offices)
+- Personal items (phones, laptops, food, clothing, people, pets)
+- Nature scenes without infrastructure (parks, forests, beaches)
+- Normal/undamaged infrastructure (clean roads, intact sidewalks)
 
-STEP 3: Check for ACTUAL damage/issue (BE VERY STRICT):
+═══════════════════════════════════════════════════════════════════════════════
+STEP 2: IDENTIFY ISSUE CATEGORY
+═══════════════════════════════════════════════════════════════════════════════
+Choose ONE category that best matches the ACTUAL DAMAGE you see:
 
-🚨 CRITICAL: Only return a category if you see ACTUAL DAMAGE/ISSUE:
+A) ROAD/STREET DAMAGE → category="Road Crack"
+   ✓ Potholes, cracks, holes in road/pavement
+   ✓ Shifted construction plates, manhole covers
+   ✓ Pavement defects in the street
+   ✗ NOT sidewalks, curbs, or pedestrian areas
 
-Road Crack:
-- ✓ Visible cracks, potholes, holes, severe damage in road surface
-- ✗ Clean, normal, well-maintained roads → "None"
+B) SIDEWALK/CURB DAMAGE → category="Sidewalk Crack"
+   ✓ Cracks, breaks, defects in sidewalks
+   ✓ Lifted/collapsed/uneven sidewalk surfaces
+   ✓ Curb damage, missing vent covers
+   ✗ NOT roads or vehicle driving surfaces
 
-Sidewalk Crack:
-- ✓ Visible cracks, breaks, uneven surfaces in sidewalk
-- ✗ Normal, intact sidewalks → "None"
+C) GRAFFITI/VANDALISM → category="Graffiti"
+   ✓ Spray paint, tags, unauthorized markings
+   ✓ On buildings, poles, public structures
+   ✓ Illegal postings, stickers, flyers
+   ✗ NOT normal signage or murals
 
-Graffiti:
-- ✓ Spray paint, vandalism, unauthorized markings clearly visible
-- ✗ Clean walls, normal surfaces → "None"
+D) TREE ISSUES → category="Fallen Tree"
+   ✓ Fallen trees blocking paths
+   ✓ Damaged, dead, or hanging limbs
+   ✓ Trees damaging property/sidewalks
+   ✗ NOT healthy, standing trees
 
-Overflowing Trash:
-- ✓ Trash bin visibly full, overflowing, trash spilling out
-- ✗ Normal/empty bins, no trash visible → "None"
+═══════════════════════════════════════════════════════════════════════════════
+STEP 3: SELECT FORM FIELDS FROM EXACT DROPDOWN OPTIONS
+═══════════════════════════════════════════════════════════════════════════════
 
-Faded Street Markings:
-- ✓ Crosswalk/lane markings that are clearly faded, worn, barely visible
-- ✗ Clear, visible markings → "None"
+📋 CATEGORY A: ROAD/STREET DAMAGE
+────────────────────────────────────────────────────────────────────────────────
+formFields = {{
+  "damageType": "pothole",
+  "issueType": "Street",
+  "requestType": "<SELECT ONE OPTION FROM BELOW>",
+  "requestDescription": "<Detailed description>"
+}}
 
-Broken Street Light:
-- ✓ Light post damaged, broken, tilted, or clearly non-functional
-- ✗ Normal street lights → "None"
+requestType OPTIONS (choose the MOST FITTING):
+  1. "Pothole/Pavement Defect" - holes, potholes, pavement damage
+  2. "Construction Plate Shifted" - metal plates out of place
+  3. "Manhole Cover Off" - missing or displaced manhole cover
+  4. "Utility Excavation" - utility work damage
+  5. "Other" - doesn't fit above categories
 
-Fallen Tree:
-- ✓ Tree or large branch BLOCKING road/sidewalk, fallen across path
-- ✗ Standing trees, normal landscaping → "None"
+────────────────────────────────────────────────────────────────────────────────
+📋 CATEGORY B: SIDEWALK/CURB DAMAGE
+────────────────────────────────────────────────────────────────────────────────
+formFields = {{
+  "damageType": "sidewalk",
+  "issueType": "Sidewalk/Curb",
+  "requestType": "<SELECT ONE OPTION FROM BELOW>",
+  "secondaryRequestType": "<IF requestType='Sidewalk Defect', SELECT FROM SECONDARY OPTIONS>",
+  "requestDescription": "<Detailed description>"
+}}
 
-EXAMPLES TO REJECT (return "None"):
-- "A photo of a normal, undamaged road" → "None"
-- "A standing tree next to a sidewalk" → "None"
-- "An empty trash bin" → "None"
-- "A working street light" → "None"
-- "A clean wall" → "None"
+requestType OPTIONS (choose the MOST FITTING):
+  1. "Sidewalk Defect" - cracks, breaks, surface damage (MOST COMMON)
+  2. "Curb or Curb Ramp Defect" - damaged curbs or ramps
+  3. "Missing Side Sewer Vent Cover" - missing vent cover
+  4. "Damaged Side Sewer Vent Cover" - broken vent cover
+  5. "Public Stairway Defect" - damaged stairs
+  6. "Pothole/Pavement Defect" - pothole in pedestrian area
 
-Return JSON:
+IF requestType = "Sidewalk Defect", secondaryRequestType OPTIONS:
+  - "Collapsed sidewalk" - sidewalk has sunken/collapsed
+  - "Lifted sidewalk" - sidewalk raised/uneven (often tree roots)
+  - "Cracked sidewalk" - visible cracks but surface still level
+  - Options containing "tree roots" - if tree damage visible
+
+────────────────────────────────────────────────────────────────────────────────
+📋 CATEGORY C: GRAFFITI
+────────────────────────────────────────────────────────────────────────────────
+
+FIRST: Determine if graffiti is on PRIVATE or PUBLIC property
+  - Private: buildings, commercial properties, residential homes
+  - Public: poles, bridges, streets, sidewalk structures, city property
+
+THEN SELECT FIELDS BASED ON PROPERTY TYPE:
+
+─── C1: GRAFFITI ON PRIVATE PROPERTY ───
+formFields = {{
+  "issueType": "Graffiti on Private Property",
+  "requestRegarding": "<SELECT ONE>",
+  "requestType": "<SELECT ONE FROM BELOW>",
+  "requestDescription": "<Detailed description>"
+}}
+
+requestRegarding OPTIONS:
+  1. "Not Offensive (no racial slurs or profanity)" - MOST COMMON
+  2. "Offensive (racial slurs or profanity)" - contains hate speech
+
+requestType OPTIONS (property type):
+  1. "Building - Commercial" - stores, offices, businesses
+  2. "Building - Residential" - homes, apartments
+  3. "Building - Other" - other private structures
+  4. "Sidewalk in front of property" - sidewalk adjacent to building
+
+─── C2: GRAFFITI ON PUBLIC PROPERTY ───
+formFields = {{
+  "issueType": "Graffiti on Public Property",
+  "requestRegarding": "<SELECT ONE>",
+  "requestType": "<SELECT ONE FROM BELOW>",
+  "requestDescription": "<Detailed description>"
+}}
+
+requestRegarding OPTIONS:
+  1. "Not Offensive (no racial slurs or profanity)" - MOST COMMON
+  2. "Offensive (racial slurs or profanity)" - contains hate speech
+
+requestType OPTIONS (structure type):
+  1. "Pole" - utility poles, light poles (MOST COMMON)
+  2. "Bridge" - bridge structures
+  3. "Street" - street surface/pavement
+  4. "Sidewalk structure" - sidewalk surface
+  5. "Signal box" - traffic signal boxes
+  6. "Transit Shelter/ Platform" - bus stops, transit areas
+  7. "City receptacle" - trash cans, public bins
+  8. "Bike rack" - bicycle parking
+  9. "Fire hydrant" - hydrants
+  10. "Fire/ Police Call Box" - emergency boxes
+  11. "Mail box" - postal boxes
+  12. "News rack" - newspaper stands
+  13. "Parking meter" - parking meters
+  14. "Pay phone" - payphones
+  15. "Sign - Parking and Traffic" - traffic signs
+  16. "ATT Property" - AT&T infrastructure
+  17. "Other - enter additional details" - doesn't fit above
+
+─── C3: ILLEGAL POSTINGS ON PUBLIC PROPERTY ───
+formFields = {{
+  "issueType": "Illegal Postings on Public Property",
+  "requestRegarding": "<SELECT ONE FROM BELOW>",
+  "requestType": "Pole",
+  "requestDescription": "<Detailed description>"
+}}
+
+requestRegarding OPTIONS (violation type):
+  1. "Multiple Postings" - multiple flyers/posters
+  2. "Affixed Improperly" - improperly attached
+  3. "No Posting Date" - missing date
+  4. "Posted Over 70 Days" - old posting
+  5. "Posting Too Large in Size" - oversized
+  6. "Posting Too High on Pole" - too high
+  7. "Posted on Traffic Light" - on traffic signals
+  8. "Posted on Historic Street Light" - on historic lights
+  9. "Posted on Directional Sign" - on directional signs
+
+────────────────────────────────────────────────────────────────────────────────
+📋 CATEGORY D: TREE ISSUES
+────────────────────────────────────────────────────────────────────────────────
+
+FIRST: Determine the tree problem type, THEN select specific issue
+
+─── D1: DAMAGED TREE ───
+formFields = {{
+  "requestRegarding": "Damaged Tree",
+  "requestType": "<SELECT ONE FROM BELOW>",
+  "requestDescription": "<Detailed description>"
+}}
+
+requestType OPTIONS:
+  1. "Fallen tree" - tree has fallen (MOST COMMON FOR CATEGORY)
+  2. "Hanging limb" - limb hanging dangerously
+  3. "About to fall" - tree leaning/unstable
+  4. "Dead tree" - dead tree standing
+  5. "Damaged Tree" - general damage
+  6. "Vandalized Tree" - intentional damage
+  7. "Other - Enter Details" - other damage
+
+─── D2: TREE DAMAGING PROPERTY ───
+formFields = {{
+  "requestRegarding": "Damaging Property",
+  "requestType": "<SELECT ONE FROM BELOW>",
+  "requestDescription": "<Detailed description>"
+}}
+
+requestType OPTIONS:
+  1. "Lifted sidewalk - tree roots" - roots lifting sidewalk
+  2. "Hitting window or building" - branches hitting structure
+  3. "Property damage" - general property damage
+  4. "Sewer damage - tree roots" - roots damaging sewer
+  5. "Other - Enter Details" - other property damage
+
+─── D3: TREE LANDSCAPING ISSUES ───
+formFields = {{
+  "requestRegarding": "Landscaping",
+  "requestType": "<SELECT ONE FROM BELOW>",
+  "requestDescription": "<Detailed description>"
+}}
+
+requestType OPTIONS:
+  1. "Weeding" - needs weeding
+  2. "Remove tree suckers" - remove shoots
+  3. "Backfill tree basin" - fill tree basin
+  4. "Empty tree basin" - empty basin
+  5. "Remove garden debris" - clean debris
+  6. "Restake tree" - re-stake tree
+  7. "Shrubbery blocking visibility" - blocking view
+  8. "Lawn mowing" - needs mowing
+  9. "Vacant lot weeding" - vacant lot needs work
+  10. "Sprinkler system issues" - irrigation problems
+  11. "Request water meter" - meter request
+  12. "Other - Enter Details" - other landscaping
+
+─── D4: OVERGROWN TREE ───
+formFields = {{
+  "requestRegarding": "Overgrown Tree",
+  "requestType": "<SELECT ONE FROM BELOW>",
+  "requestDescription": "<Detailed description>"
+}}
+
+requestType OPTIONS:
+  1. "Pruning request" - needs pruning (MOST COMMON)
+  2. "Blocking sidewalk" - branches blocking path
+  3. "Blocking street lights" - blocking lights
+  4. "Blocking traffic signal" - blocking signals
+  5. "Blocking signs" - blocking signs
+  6. "Near communication line" - near power lines
+  7. "Other - Enter Details" - other overgrowth
+
+─── D5: OTHER TREE ISSUES ───
+formFields = {{
+  "requestRegarding": "Other",
+  "requestType": "N/A",
+  "requestDescription": "<Detailed description>"
+}}
+
+═══════════════════════════════════════════════════════════════════════════════
+STEP 4: GENERATE RESPONSE JSON
+═══════════════════════════════════════════════════════════════════════════════
+
+Return this EXACT structure:
 {{
-  "category": "<exact category name or None>",
+  "category": "<Road Crack|Sidewalk Crack|Graffiti|Fallen Tree|None>",
   "Lat": {latitude},
   "Long": {longitude},
-  "Text_Description": "<what you see and why you made this determination>",
-  "confidence": <0.0 for None, 0.6-1.0 for real issues based on visibility>
+  "Text_Description": "<Detailed description of damage for civic report>",
+  "confidence": <0.0 for None, 0.6-1.0 for issues based on visibility>,
+  "locationDescription": "<Specific location description (e.g., 'center of right lane', 'in front of building entrance')>",
+  "formFields": {{
+    <fields from decision tree above>
+  }}
+}}
+
+═══════════════════════════════════════════════════════════════════════════════
+EXAMPLES
+═══════════════════════════════════════════════════════════════════════════════
+
+Example 1: Large pothole
+{{
+  "category": "Road Crack",
+  "Lat": {latitude},
+  "Long": {longitude},
+  "Text_Description": "Large pothole approximately 2 feet in diameter in the center of the right lane with exposed aggregate and chunks of missing asphalt. Creating significant hazard for vehicles.",
+  "confidence": 0.92,
+  "locationDescription": "Center of right lane, approximately 20 feet before the intersection",
+  "formFields": {{
+    "damageType": "pothole",
+    "issueType": "Street",
+    "requestType": "Pothole/Pavement Defect",
+    "requestDescription": "Large pothole approximately 2 feet in diameter in the center of the right lane with exposed aggregate and chunks of missing asphalt. Creating significant hazard for vehicles."
+  }}
+}}
+
+Example 2: Lifted sidewalk from tree roots
+{{
+  "category": "Sidewalk Crack",
+  "Lat": {latitude},
+  "Long": {longitude},
+  "Text_Description": "Sidewalk lifted and uneven due to tree root growth beneath the surface. Section raised approximately 4 inches creating tripping hazard.",
+  "confidence": 0.88,
+  "locationDescription": "Main pedestrian sidewalk directly in front of the tree, adjacent to the curb",
+  "formFields": {{
+    "damageType": "sidewalk",
+    "issueType": "Sidewalk/Curb",
+    "requestType": "Sidewalk Defect",
+    "secondaryRequestType": "Lifted sidewalk",
+    "requestDescription": "Sidewalk lifted and uneven due to tree root growth beneath the surface. Section raised approximately 4 inches creating tripping hazard."
+  }}
+}}
+
+Example 3: Graffiti on commercial building
+{{
+  "category": "Graffiti",
+  "Lat": {latitude},
+  "Long": {longitude},
+  "Text_Description": "Spray-painted graffiti tags covering approximately 8 square feet of exterior wall. Multiple colors used, non-offensive tags and designs.",
+  "confidence": 0.95,
+  "locationDescription": "Side exterior wall of commercial building facing the street, near the main entrance",
+  "formFields": {{
+    "issueType": "Graffiti on Private Property",
+    "requestRegarding": "Not Offensive (no racial slurs or profanity)",
+    "requestType": "Building - Commercial",
+    "requestDescription": "Spray-painted graffiti tags covering approximately 8 square feet of exterior wall. Multiple colors used, non-offensive tags and designs."
+  }}
+}}
+
+Example 4: Fallen tree blocking sidewalk
+{{
+  "category": "Fallen Tree",
+  "Lat": {latitude},
+  "Long": {longitude},
+  "Text_Description": "Large tree has completely fallen across the sidewalk blocking all pedestrian access. Tree appears to be approximately 20 feet tall with trunk diameter of 12 inches. Immediate removal required for public safety.",
+  "confidence": 0.97,
+  "locationDescription": "Fallen across entire width of sidewalk, trunk resting on curb, branches extending into street",
+  "formFields": {{
+    "requestRegarding": "Damaged Tree",
+    "requestType": "Fallen tree",
+    "requestDescription": "Large tree has completely fallen across the sidewalk blocking all pedestrian access. Tree appears to be approximately 20 feet tall with trunk diameter of 12 inches. Immediate removal required for public safety."
+  }}
+}}
+
+Example 5: Normal road (NO ISSUE)
+{{
+  "category": "None",
+  "Lat": {latitude},
+  "Long": {longitude},
+  "Text_Description": "Image shows a normal, well-maintained road surface with no visible damage or defects.",
+  "confidence": 0.0,
+  "locationDescription": "",
+  "formFields": {{}}
 }}"""
 
         print(f"Sending request to Groq ({model})...")
@@ -191,7 +468,7 @@ Return JSON:
                 }
             ],
             temperature=0.3,  # Lower temperature for more consistent outputs
-            max_completion_tokens=512,
+            max_completion_tokens=1024,  # Increased for form fields
             response_format={"type": "json_object"},  # Force JSON output
             stop=None,
         )
@@ -242,19 +519,24 @@ Return JSON:
         else:
             text_desc = result.get("Text_Description", "Civic infrastructure issue detected")
 
-        # Build final response
+        # Build final response with form fields
         analysis_result = {
             "category": category,
             "Lat": result.get("Lat", latitude),
             "Long": result.get("Long", longitude),
             "Text_Description": text_desc,
-            "confidence": confidence
+            "confidence": confidence,
+            "locationDescription": result.get("locationDescription", ""),
+            "formFields": result.get("formFields", {})
         }
 
         if category == "None":
             print(f"⚠️ Image rejected: {text_desc}")
         else:
             print(f"✅ Issue detected: {category} (confidence: {confidence:.2f})")
+            # Log form fields for debugging
+            if analysis_result["formFields"]:
+                print(f"   Form fields: {json.dumps(analysis_result['formFields'], indent=2)}")
 
         return analysis_result
 

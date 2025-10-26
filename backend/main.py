@@ -5,12 +5,14 @@ from typing import Optional, List
 import os
 import uuid
 import asyncio
+import json
 from datetime import datetime
 from PIL import Image
 import io
 from pillow_heif import register_heif_opener
 from image_agent import analyze_image_with_agent
 from brightdata_search import search_reporting_form
+from playwright_integration import submit_to_sfgov
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -56,8 +58,12 @@ def process_mobile_image(image_file: UploadFile) -> tuple[str, str]:
         
         # Generate new filename (always save as .jpg for consistency)
         processed_filename = f"processed_{uuid.uuid4().hex[:8]}.jpg"
-        file_path = os.path.join("uploads", processed_filename)
-        
+
+        # Use absolute path for Playwright script compatibility
+        uploads_dir = os.path.join(os.path.dirname(__file__), "uploads")
+        os.makedirs(uploads_dir, exist_ok=True)  # Ensure directory exists
+        file_path = os.path.join(uploads_dir, processed_filename)
+
         # Save as JPEG (universally compatible)
         image.save(file_path, "JPEG", quality=85, optimize=True)
         
@@ -81,6 +87,8 @@ class PipelineResponse(BaseModel):
     issue_type: Optional[str] = None
     confidence: Optional[float] = None
     reporting_url: Optional[str] = None  # URL to civic reporting form
+    location_description: Optional[str] = None  # Specific location details from AI
+    form_fields: Optional[dict] = None  # Form-ready fields for Playwright
     tracking_number: Optional[str] = None
     social_post_url: Optional[str] = None
     created_at: datetime
@@ -153,6 +161,8 @@ async def submit_civic_issue(
                 issue_type=None,
                 confidence=0.0,
                 reporting_url=None,
+                location_description=None,
+                form_fields=None,
                 tracking_number=None,
                 social_post_url=None,
                 created_at=datetime.now()
@@ -189,14 +199,54 @@ async def submit_civic_issue(
             reporting_url = form_search_result['top_link']['url']
             print(f"\n✅ Found reporting form: {reporting_url}")
 
+            # Submit form to SF.gov using Playwright
+            print(f"\n🎭 Submitting form to SF.gov via Playwright...")
+            playwright_result = await submit_to_sfgov(
+                category=issue_type,
+                form_fields=analysis_results.get('formFields', {}),
+                latitude=latitude,
+                longitude=longitude,
+                location_description=analysis_results.get('locationDescription', ''),
+                request_description=analysis_results.get('Text_Description', ''),
+                image_path=file_path
+            )
+
+            # Check Playwright submission result
+            tracking_number = None
+            status = "analyzed"
+            message = f"Issue detected: {issue_type}. {analysis_results['Text_Description']}"
+            final_tracking_id = tracking_id  # Default to generated ID
+
+            if playwright_result['success']:
+                tracking_number = playwright_result.get('tracking_number')
+                status = "submitted"
+
+                # Use SF.gov tracking number as primary ID if available
+                if tracking_number:
+                    final_tracking_id = tracking_number
+                    message = f"Issue submitted successfully! Tracking number: {tracking_number}"
+                    print(f"✅ Form submitted! Using SF.gov tracking number: {tracking_number}")
+                else:
+                    message = f"Issue submitted successfully! Internal ID: {tracking_id}"
+                    print(f"✅ Form submitted! Using internal tracking ID: {tracking_id}")
+
+                if playwright_result.get('address'):
+                    print(f"📍 Address: {playwright_result['address']}")
+            else:
+                error = playwright_result.get('error', 'Unknown error')
+                print(f"⚠️ Form submission failed: {error}")
+                message = f"Issue detected: {issue_type}. Form submission failed: {error}"
+
             response = PipelineResponse(
-                tracking_id=tracking_id,
-                status="analyzed",
-                message=f"Issue detected: {issue_type}. {analysis_results['Text_Description']}",
+                tracking_id=final_tracking_id,  # Use SF.gov number if available
+                status=status,
+                message=message,
                 issue_type=issue_type,
                 confidence=analysis_results.get('confidence', 0.85),
                 reporting_url=reporting_url,
-                tracking_number=None,  # TODO: Add after form submission
+                location_description=analysis_results.get('locationDescription', ''),
+                form_fields=analysis_results.get('formFields', {}),
+                tracking_number=tracking_number,  # Keep original field for backward compatibility
                 social_post_url=None,   # TODO: Add after Twitter post
                 created_at=datetime.now()
             )
@@ -214,6 +264,8 @@ async def submit_civic_issue(
             issue_type=None,
             confidence=None,
             reporting_url=None,
+            location_description=None,
+            form_fields=None,
             tracking_number=None,
             social_post_url=None,
             created_at=datetime.now()
@@ -231,12 +283,15 @@ async def submit_civic_issue(
     print("\n" + "="*80)
     print("📋 PIPELINE RESPONSE")
     print("="*80)
-    print(f"Tracking ID:    {response.tracking_id}")
-    print(f"Status:         {response.status}")
-    print(f"Issue Type:     {response.issue_type or 'N/A'}")
-    print(f"Confidence:     {response.confidence if response.confidence else 'N/A'}")
-    print(f"Reporting URL:  {response.reporting_url or 'N/A'}")
-    print(f"Message:        {response.message[:100]}...")
+    print(f"Tracking ID:       {response.tracking_id}")
+    print(f"Status:            {response.status}")
+    print(f"Issue Type:        {response.issue_type or 'N/A'}")
+    print(f"Confidence:        {response.confidence if response.confidence else 'N/A'}")
+    print(f"Reporting URL:     {response.reporting_url or 'N/A'}")
+    print(f"Location Details:  {response.location_description or 'N/A'}")
+    if response.form_fields:
+        print(f"Form Fields:       {json.dumps(response.form_fields, indent=19)}")
+    print(f"Message:           {response.message[:100]}...")
     print("="*80 + "\n")
 
     return response

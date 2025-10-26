@@ -685,14 +685,19 @@ class UnifiedSFFormAutomation {
   }
 
   async uploadImage(imagePath) {
+    if (!imagePath) {
+      console.log(`   ⚠️ No image path provided, skipping image upload`);
+      return;
+    }
+
     console.log(`   Uploading image: ${imagePath}`);
-    
+
     const fileUploadSelector = 'input[name="File_attach[]"]';
     const fileUploadElement = await this.page.$(fileUploadSelector);
-    
+
     if (fileUploadElement && await fileUploadElement.isVisible()) {
       await fileUploadElement.setInputFiles(imagePath);
-      console.log(`   ✅ Uploaded image file`);
+      console.log(`   ✅ Uploaded image file: ${imagePath}`);
       await this.page.waitForTimeout(1000);
     } else {
       console.log(`   ⚠️ File upload field not found with selector: ${fileUploadSelector}`);
@@ -1182,49 +1187,73 @@ module.exports = { UnifiedSFFormAutomation };
 if (require.main === module) {
   async function runUnifiedTest() {
     const automation = new UnifiedSFFormAutomation({ headless: false });
-    
+
     try {
-      // Test both Street and Sidewalk forms
-      console.log('🧪 Testing Both Street and Sidewalk Forms');
-      console.log('==========================================');
-      
-      // Test Street form
-      console.log('\n🚧 Testing Street Form:');
-      console.log('========================');
-      const streetResult = await automation.testUnifiedForm('pothole');
-      
-      console.log('\n' + '='.repeat(80));
-      
-      // Test Sidewalk form
-      console.log('\n🚧 Testing Sidewalk Form:');
-      console.log('===========================');
-      const sidewalkResult = await automation.testUnifiedForm('sidewalk');
-      
-      // Save results
-      const fs = require('fs');
-      const resultsPath = path.join(__dirname, 'unified-form-test-results.json');
-      const allResults = {
-        street: streetResult,
-        sidewalk: sidewalkResult,
-        testedAt: new Date().toISOString()
-      };
-      fs.writeFileSync(resultsPath, JSON.stringify(allResults, null, 2));
-      console.log(`\n💾 Test results saved to: ${resultsPath}`);
-      
-      // Summary
-      console.log('\n📊 Test Summary:');
-      console.log('================');
-      console.log(`Street Form: ${streetResult.success ? '✅ SUCCESS' : '❌ FAILED'}`);
-      if (streetResult.success) {
-        console.log(`  Service Request: ${streetResult.serviceRequestNumber || 'N/A'}`);
-        console.log(`  Address: ${streetResult.requestAddress || 'N/A'}`);
+      // Check if CLI arguments provided (from Python backend)
+      if (process.argv[2]) {
+        try {
+          const formData = JSON.parse(process.argv[2]);
+          console.log('📥 Received form data from backend:', JSON.stringify(formData, null, 2));
+
+          console.log('\n🎭 Submitting Form to SF.gov');
+          console.log('============================');
+
+          // Submit using the provided data
+          const result = await automation.submitSFReport(formData);
+
+          // Output result as JSON for Python to parse
+          console.log('\n✅ SUBMISSION RESULT:');
+          console.log(JSON.stringify(result, null, 2));
+
+          return result;
+
+        } catch (parseError) {
+          console.error('❌ Failed to parse CLI arguments:', parseError.message);
+          process.exit(1);
+        }
+      } else {
+        // No CLI arguments - run default tests
+        console.log('🧪 Testing Both Street and Sidewalk Forms');
+        console.log('==========================================');
+
+        // Test Street form
+        console.log('\n🚧 Testing Street Form:');
+        console.log('========================');
+        const streetResult = await automation.testUnifiedForm('pothole');
+
+        console.log('\n' + '='.repeat(80));
+
+        // Test Sidewalk form
+        console.log('\n🚧 Testing Sidewalk Form:');
+        console.log('===========================');
+        const sidewalkResult = await automation.testUnifiedForm('sidewalk');
+
+        // Save results
+        const fs = require('fs');
+        const resultsPath = path.join(__dirname, 'unified-form-test-results.json');
+        const allResults = {
+          street: streetResult,
+          sidewalk: sidewalkResult,
+          testedAt: new Date().toISOString()
+        };
+        fs.writeFileSync(resultsPath, JSON.stringify(allResults, null, 2));
+        console.log(`\n💾 Test results saved to: ${resultsPath}`);
+
+        // Summary
+        console.log('\n📊 Test Summary:');
+        console.log('================');
+        console.log(`Street Form: ${streetResult.success ? '✅ SUCCESS' : '❌ FAILED'}`);
+        if (streetResult.success) {
+          console.log(`  Service Request: ${streetResult.serviceRequestNumber || 'N/A'}`);
+          console.log(`  Address: ${streetResult.requestAddress || 'N/A'}`);
+        }
+        console.log(`Sidewalk Form: ${sidewalkResult.success ? '✅ SUCCESS' : '❌ FAILED'}`);
+        if (sidewalkResult.success) {
+          console.log(`  Service Request: ${sidewalkResult.serviceRequestNumber || 'N/A'}`);
+          console.log(`  Address: ${sidewalkResult.requestAddress || 'N/A'}`);
+        }
       }
-      console.log(`Sidewalk Form: ${sidewalkResult.success ? '✅ SUCCESS' : '❌ FAILED'}`);
-      if (sidewalkResult.success) {
-        console.log(`  Service Request: ${sidewalkResult.serviceRequestNumber || 'N/A'}`);
-        console.log(`  Address: ${sidewalkResult.requestAddress || 'N/A'}`);
-      }
-      
+
     } catch (error) {
       console.error('Unified form test failed:', error);
     }

@@ -632,12 +632,17 @@ class FallenTreeFormAutomation {
    * Upload image file
    */
   async uploadImage(imagePath) {
+    if (!imagePath) {
+      console.log(`   ⚠️ No image path provided, skipping image upload`);
+      return;
+    }
+
     const fileUploadSelector = 'input[name="File_attach[]"]';
     const fileUploadElement = await this.page.$(fileUploadSelector);
-    
+
     if (fileUploadElement) {
       await fileUploadElement.setInputFiles(imagePath);
-      console.log(`   ✅ Uploaded image file`);
+      console.log(`   ✅ Uploaded image file: ${imagePath}`);
     } else {
       console.log(`   ⚠️ File upload field not found with selector: ${fileUploadSelector}`);
     }
@@ -853,31 +858,34 @@ class FallenTreeFormAutomation {
    */
   async extractServiceRequestNumber() {
     console.log('   Extracting service request number...');
-    
+
     const pageContent = await this.page.textContent('body');
-    
-    // Try multiple patterns for service request number
+
+    // Try multiple patterns for service request number (order matters - specific first)
     const patterns = [
-      /service request number[:\s]*([A-Z0-9-]+)/i,
-      /request number[:\s]*([A-Z0-9-]+)/i,
-      /reference number[:\s]*([A-Z0-9-]+)/i,
-      /case number[:\s]*([A-Z0-9-]+)/i,
-      /([A-Z0-9]{10,})/g  // Generic pattern for long alphanumeric strings
+      /service request number[:\s]*(\d{10,})/i,  // Service request number: 101002860550
+      /request number[:\s]*(\d{10,})/i,          // Request number: 101002860550
+      /reference number[:\s]*(\d{10,})/i,        // Reference number: 101002860550
+      /case number[:\s]*(\d{10,})/i,             // Case number: 101002860550
+      /SR[:\s#]*(\d{10,})/i,                     // SR: 101002860550
+      /\b(\d{12})\b/,                            // 12-digit number (SF.gov format)
+      /\b(\d{10,15})\b/                          // 10-15 digit number
     ];
-    
+
     for (const pattern of patterns) {
       const matches = pageContent.match(pattern);
-      if (matches) {
-        const serviceRequestNumber = matches[1] || matches[0];
-        // Filter out common words that might match the generic pattern
-        if (!['Please', 'continue', 'proceed', 'submit'].includes(serviceRequestNumber)) {
+      if (matches && matches[1]) {
+        const serviceRequestNumber = matches[1];
+        // Validate it's at least 10 digits long
+        if (serviceRequestNumber.length >= 10) {
           console.log(`   ✅ Extracted service request number: ${serviceRequestNumber}`);
           return serviceRequestNumber;
         }
       }
     }
-    
+
     console.log('   ⚠️ Service request number not found');
+    console.log('   📄 Page content preview:', pageContent.substring(0, 500));
     return 'Not found';
   }
 

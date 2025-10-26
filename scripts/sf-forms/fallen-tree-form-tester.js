@@ -176,32 +176,64 @@ class FallenTreeFormTester {
 // Test runner
 (async () => {
   const tester = new FallenTreeFormTester();
-  
+
   try {
     await tester.init();
-    
-    // Test single case first
-    const singleTestCase = {
-      name: 'Damaged Tree - Fallen tree',
-      requestRegarding: 'Damaged Tree',
-      requestType: 'Fallen tree',
-      coordinates: '37.755196, -122.423207',
-      locationDescription: 'Large tree has fallen across the sidewalk blocking pedestrian access.',
-      requestDescription: 'Emergency: Large oak tree has fallen across the sidewalk and is blocking pedestrian access. Immediate removal required for safety.',
-      imagePath: 'scripts/sf-forms/sample-pothole-image.jpg'
-    };
-    
-    console.log('🧪 Testing Single Fallen Tree Type First');
-    console.log('=========================================');
-    await tester.testSingleFallenTreeType(singleTestCase);
-    
-    // Test all types
-    console.log('\n🧪 Testing All Fallen Tree Types');
-    console.log('=================================');
-    await tester.testAllFallenTreeTypes();
-    
+
+    // Check if CLI arguments provided (from Python backend)
+    if (process.argv[2]) {
+      try {
+        const formData = JSON.parse(process.argv[2]);
+        console.log('📥 Received form data from backend:', JSON.stringify(formData, null, 2));
+
+        // Use provided data
+        const testCase = {
+          name: 'Backend Submission',
+          requestRegarding: formData.requestRegarding || 'Damaged Tree',
+          requestType: formData.requestType || 'Fallen tree',
+          coordinates: formData.coordinates || '37.755196, -122.423207',
+          locationDescription: formData.locationDescription || '',
+          requestDescription: formData.requestDescription || '',
+          imagePath: formData.imagePath || ''
+        };
+
+        console.log('\n🎭 Submitting Form to SF.gov');
+        console.log('============================');
+        const result = await tester.testSingleFallenTreeType(testCase);
+
+        // Output result as JSON for Python to parse
+        console.log('\n✅ SUBMISSION RESULT:');
+        console.log(JSON.stringify(result, null, 2));
+
+      } catch (parseError) {
+        console.error('❌ Failed to parse CLI arguments:', parseError.message);
+        process.exit(1);
+      }
+    } else {
+      // No CLI arguments - run default tests
+      const singleTestCase = {
+        name: 'Damaged Tree - Fallen tree',
+        requestRegarding: 'Damaged Tree',
+        requestType: 'Fallen tree',
+        coordinates: '37.755196, -122.423207',
+        locationDescription: 'Large tree has fallen across the sidewalk blocking pedestrian access.',
+        requestDescription: 'Emergency: Large oak tree has fallen across the sidewalk and is blocking pedestrian access. Immediate removal required for safety.',
+        imagePath: 'scripts/sf-forms/sample-pothole-image.jpg'
+      };
+
+      console.log('🧪 Testing Single Fallen Tree Type First');
+      console.log('=========================================');
+      await tester.testSingleFallenTreeType(singleTestCase);
+
+      // Test all types
+      console.log('\n🧪 Testing All Fallen Tree Types');
+      console.log('=================================');
+      await tester.testAllFallenTreeTypes();
+    }
+
   } catch (error) {
     console.error('❌ Error during testing:', error.message);
+    process.exit(1);
   } finally {
     await tester.cleanup();
   }

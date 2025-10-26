@@ -576,7 +576,11 @@ class GraffitiFormTester {
 
     // Step 5: Upload image
     console.log(`   Step 5: Uploading image...`);
-    await this.uploadImage('/Users/adhi/Desktop/pot-buddy/scripts/sf-forms/sample-pothole-image.jpg');
+    if (testCase.imagePath) {
+      await this.uploadImage(testCase.imagePath);
+    } else {
+      console.log(`   ⚠️ No image path provided, skipping image upload`);
+    }
 
     console.log(`   ✅ Graffiti form fields completed`);
   }
@@ -997,7 +1001,54 @@ class GraffitiFormTester {
 // Run the comprehensive test
 (async () => {
   const tester = new GraffitiFormTester();
-  await tester.init();
-  await tester.testAllGraffitiTypes();
-  await tester.browser.close();
+
+  try {
+    await tester.init();
+
+    // Check if CLI arguments provided (from Python backend)
+    if (process.argv[2]) {
+      try {
+        const formData = JSON.parse(process.argv[2]);
+        console.log('📥 Received form data from backend:', JSON.stringify(formData, null, 2));
+
+        console.log('\n🎭 Submitting Graffiti Form to SF.gov');
+        console.log('======================================');
+
+        // Build testCase object in the format the script expects
+        const testCase = {
+          name: 'Backend Submission',
+          issueType: formData.issueType || 'Graffiti on Private Property',
+          requestRegarding: formData.requestRegarding || 'Not Offensive (no racial slurs or profanity)',
+          requestType: formData.requestType || 'Building - Commercial',
+          coordinates: formData.coordinates || '37.755196, -122.423207',
+          locationDescription: formData.locationDescription || '',
+          requestDescription: formData.requestDescription || '',
+          imagePath: formData.imagePath || ''
+        };
+
+        console.log('📋 Test case:', JSON.stringify(testCase, null, 2));
+
+        // Test single graffiti type with provided data
+        const result = await tester.testGraffitiType(testCase);
+
+        // Output result as JSON for Python to parse
+        console.log('\n✅ SUBMISSION RESULT:');
+        console.log(JSON.stringify(result, null, 2));
+
+      } catch (parseError) {
+        console.error('❌ Failed to parse CLI arguments:', parseError.message);
+        console.error('Stack:', parseError.stack);
+        process.exit(1);
+      }
+    } else {
+      // No CLI arguments - run all tests
+      await tester.testAllGraffitiTypes();
+    }
+
+  } catch (error) {
+    console.error('❌ Error:', error.message);
+    process.exit(1);
+  } finally {
+    await tester.browser.close();
+  }
 })();
