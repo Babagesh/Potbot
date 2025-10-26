@@ -290,6 +290,7 @@ async def submit_civic_issue(
 
             if playwright_result['success']:
                 tracking_number = playwright_result.get('tracking_number')
+                address = playwright_result.get('address', 'Address not available')
                 status = "submitted"
 
                 # Use SF.gov tracking number as primary ID if available
@@ -301,30 +302,56 @@ async def submit_civic_issue(
                     message = f"Issue submitted successfully! Internal ID: {tracking_id}"
                     print(f"✅ Form submitted! Using internal tracking ID: {tracking_id}")
 
-                if playwright_result.get('address'):
-                    print(f"📍 Address: {playwright_result['address']}")
+                if address:
+                    print(f"📍 Address: {address}")
+
+                # Call Agent #3: Social Media Publishing (only if form submission succeeded)
+                social_post_url = None
+                if tracking_number:  # Only post to social media if we have a real tracking number
+                    print(f"\n🐦 Agent #3: Publishing to social media...")
+                    try:
+                        social_media_result = await publish_civic_issue_to_social_media(
+                            # Agent #1 data
+                            image_path=file_path,
+                            category=issue_type,
+                            description=analysis_results.get('Text_Description', ''),
+                            latitude=latitude,
+                            longitude=longitude,
+                            confidence=analysis_results.get('confidence', 0.85),
+                            tracking_id=final_tracking_id,
+                            # Agent #2 data
+                            tracking_number=tracking_number,
+                            address=address
+                        )
+
+                        if social_media_result['success']:
+                            social_post_url = social_media_result.get('post_url')
+                            print(f"✅ Posted to social media: {social_post_url}")
+                            message = f"Issue submitted! Tracking: {tracking_number}. Posted: {social_post_url}"
+                        else:
+                            print(f"⚠️ Social media post failed: {social_media_result.get('error')}")
+
+                    except Exception as e:
+                        print(f"⚠️ Social media agent failed: {str(e)}")
+                        # Continue anyway - social media failure shouldn't fail the whole pipeline
+
             else:
                 error = playwright_result.get('error', 'Unknown error')
                 print(f"⚠️ Form submission failed: {error}")
                 message = f"Issue detected: {issue_type}. Form submission failed: {error}"
+                social_post_url = None
 
             response = PipelineResponse(
-                tracking_id=tracking_id,
-                status="completed",
-                message=f"Issue successfully reported and published! City tracking: {city_tracking_number}",
-                issue_type=analysis_results['category'],
                 tracking_id=final_tracking_id,  # Use SF.gov number if available
                 status=status,
                 message=message,
                 issue_type=issue_type,
                 confidence=analysis_results.get('confidence', 0.85),
-                tracking_number=city_tracking_number,
-                social_post_url=post_url,
                 reporting_url=reporting_url,
                 location_description=analysis_results.get('locationDescription', ''),
                 form_fields=analysis_results.get('formFields', {}),
-                tracking_number=tracking_number,  # Keep original field for backward compatibility
-                social_post_url=None,   # TODO: Add after Twitter post
+                tracking_number=tracking_number,
+                social_post_url=social_post_url,
                 created_at=datetime.now()
             )
 

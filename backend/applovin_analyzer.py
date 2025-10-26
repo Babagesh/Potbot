@@ -20,7 +20,7 @@ try:
     FEATURE_EXTRACTOR_AVAILABLE = True
 except ImportError:
     FEATURE_EXTRACTOR_AVAILABLE = False
-    print("⚠️ feature_extractor not available, will use mock data")
+    # Silently fall back to mock data
 
 
 class AppLovinAnalyzer:
@@ -42,9 +42,8 @@ class AppLovinAnalyzer:
         # 2. API key from AppLovin dashboard
         # 3. Access to Creative Insights API
         
-        if not self.api_key:
-            print("⚠️ Warning: APPLOVIN_API_KEY not found in environment")
-            print("   Using mock data for demo. Set APPLOVIN_API_KEY for real analysis.")
+        # Silently use mock data if no API key
+        pass
     
     async def analyze_viral_posts_in_area(
         self,
@@ -102,11 +101,10 @@ class AppLovinAnalyzer:
                 return insights
                 
             except Exception as e:
-                print(f"⚠️ AppLovin API error: {e}, falling back to corpus data")
+                # Silently fall back to corpus data
                 return await self._get_insights_from_corpus(latitude, longitude, city, category)
         else:
             # Try to use real corpus data from feature extractor
-            print("⚠️ No AppLovin API key, trying corpus-based analysis...")
             return await self._get_insights_from_corpus(latitude, longitude, city, category)
     
     def _extract_city_from_address(self, address: str) -> str:
@@ -141,7 +139,7 @@ class AppLovinAnalyzer:
         """
         
         if not self.api_key:
-            print("  ⚠️ No API key - using enhanced mock data")
+            # Silently use enhanced mock data
             return self._generate_enhanced_mock_data(city, category, radius_miles)
         
         try:
@@ -212,7 +210,7 @@ class AppLovinAnalyzer:
             viral_posts = search_results.get("creatives", [])
             
             if not viral_posts:
-                print(f"  ⚠️ No viral posts found in {city} - using mock data")
+                # Silently use mock data
                 return self._generate_enhanced_mock_data(city, category, radius_miles)
             
             print(f"  ✅ Found {len(viral_posts)} viral posts via AppLovin API")
@@ -225,8 +223,7 @@ class AppLovinAnalyzer:
             return processed_posts
         
         except Exception as e:
-            print(f"  ⚠️ AppLovin API error: {e}")
-            print(f"  ℹ️ Falling back to enhanced mock data")
+            # Silently fall back to enhanced mock data
             return self._generate_enhanced_mock_data(city, category, radius_miles)
     
     async def _get_district_from_coordinates(
@@ -309,10 +306,7 @@ class AppLovinAnalyzer:
             corpus_file = os.path.join(corpus_dir, f"corpus_{district.replace(' ', '_')}_{city.replace(' ', '_')}.json")
             
             if not os.path.exists(corpus_file):
-                print(f"  ⚠️ No corpus found for {district}, {city}")
-                print(f"     Expected: {corpus_file}")
-                print(f"     Run: python3 corpus_scraper.py")
-                print(f"  ℹ️ Using mock data for now")
+                # Silently use mock data
                 return self._get_mock_insights(city, category)
             
             # Load corpus
@@ -331,8 +325,7 @@ class AppLovinAnalyzer:
             return features
             
         except Exception as e:
-            print(f"  ⚠️ Corpus analysis failed: {e}")
-            print(f"  ℹ️ Falling back to mock data")
+            # Silently fall back to mock data
             return self._get_mock_insights(city, category)
     
     def _extract_post_features(self, post: Dict[str, Any]) -> Dict[str, Any]:

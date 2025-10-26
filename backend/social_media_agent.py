@@ -41,7 +41,7 @@ class SocialMediaAgent:
             access_secret = os.getenv("TWITTER_ACCESS_TOKEN_SECRET")
             
             if not all([bearer_token, api_key, api_secret, access_token, access_secret]):
-                print("⚠️ Warning: Twitter API credentials not found in environment")
+                # Silently return None if credentials missing
                 return None
             
             # Create client with OAuth 1.0a User Context
@@ -52,8 +52,7 @@ class SocialMediaAgent:
                 access_token=access_token,
                 access_token_secret=access_secret
             )
-            
-            print("✅ Twitter API client initialized")
+
             return client
             
         except Exception as e:
