@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, Form
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
@@ -10,6 +10,7 @@ from PIL import Image
 import io
 from pillow_heif import register_heif_opener
 from image_agent import analyze_image_with_agent
+from brightdata_search import search_reporting_form
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -79,6 +80,7 @@ class PipelineResponse(BaseModel):
     message: str
     issue_type: Optional[str] = None
     confidence: Optional[float] = None
+    reporting_url: Optional[str] = None  # URL to civic reporting form
     tracking_number: Optional[str] = None
     social_post_url: Optional[str] = None
     created_at: datetime
@@ -121,46 +123,87 @@ async def submit_civic_issue(
     
     # Process mobile image (handles HEIC, JPEG, etc.)
     processed_filename, file_path = process_mobile_image(image)
-    print(f'Mobile image processed and saved as {processed_filename} (GPS: {latitude}, {longitude})')
 
     # Generate unique tracking ID
     tracking_id = f"REPORT-{uuid.uuid4().hex[:8].upper()}"
 
+    print("\n" + "="*80)
+    print(f"🚀 STARTING PIPELINE: {tracking_id}")
+    print("="*80)
+    print(f"📸 Image: {processed_filename}")
+    print(f"📍 GPS: ({latitude}, {longitude})")
+    print("="*80 + "\n")
+
     try:
         # Analyze image with Groq Vision AI
-        print(f"Starting AI analysis for {tracking_id}...")
+        print(f"🔍 Starting AI analysis...")
         analysis_results = await analyze_image_with_agent(
             file_path, latitude, longitude
         )
 
-        print(f"Analysis complete: {analysis_results['category']}")
+        print(f"✅ Analysis complete: {analysis_results['category']} (confidence: {analysis_results.get('confidence', 0.85)})")
 
         # Check if spam/non-civic infrastructure image
         if analysis_results['category'] == "None":
-            print(f"Image rejected: {analysis_results['Text_Description']}")
+            print(f"❌ Image rejected: Not civic infrastructure")
             response = PipelineResponse(
                 tracking_id=tracking_id,
                 status="rejected",
                 message=f"Image rejected: {analysis_results['Text_Description']}",
                 issue_type=None,
                 confidence=0.0,
+                reporting_url=None,
                 tracking_number=None,
                 social_post_url=None,
                 created_at=datetime.now()
             )
         else:
             # Valid civic infrastructure issue detected
+            issue_type = analysis_results['category']
+            print(f"✓ Valid civic issue detected: {issue_type}")
+
+            # Search for reporting form using BrightData (REQUIRED for Playwright form submission)
+            print(f"\n🔍 Searching for reporting form...")
+            form_search_result = await search_reporting_form(
+                latitude=latitude,
+                longitude=longitude,
+                issue_type=issue_type
+            )
+
+            # Validate that we got a reporting URL (required for form submission)
+            if not form_search_result['success']:
+                error_msg = form_search_result.get('error', 'Unknown error')
+                print(f"❌ Form search failed: {error_msg}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to find reporting form: {error_msg}"
+                )
+
+            if not form_search_result.get('top_link') or not form_search_result['top_link'].get('url'):
+                print(f"❌ No reporting URL found for {issue_type}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"No reporting form URL found for {issue_type}. Cannot proceed with form submission."
+                )
+
+            reporting_url = form_search_result['top_link']['url']
+            print(f"\n✅ Found reporting form: {reporting_url}")
+
             response = PipelineResponse(
                 tracking_id=tracking_id,
                 status="analyzed",
-                message=f"Issue detected: {analysis_results['category']}. {analysis_results['Text_Description']}",
-                issue_type=analysis_results['category'],
+                message=f"Issue detected: {issue_type}. {analysis_results['Text_Description']}",
+                issue_type=issue_type,
                 confidence=analysis_results.get('confidence', 0.85),
+                reporting_url=reporting_url,
                 tracking_number=None,  # TODO: Add after form submission
                 social_post_url=None,   # TODO: Add after Twitter post
                 created_at=datetime.now()
             )
 
+    except HTTPException:
+        # Re-raise HTTPExceptions (form search failures, validation errors)
+        raise
     except Exception as e:
         # If agent analysis fails, return basic response
         print(f"Agent analysis failed: {str(e)}")
@@ -170,6 +213,7 @@ async def submit_civic_issue(
             message=f"Issue submitted successfully. Analysis failed: {str(e)}",
             issue_type=None,
             confidence=None,
+            reporting_url=None,
             tracking_number=None,
             social_post_url=None,
             created_at=datetime.now()
@@ -183,7 +227,38 @@ async def submit_civic_issue(
     # Store in database (in-memory for now)
     reports_db[tracking_id] = response.model_dump()
 
+    # Print final pipeline response for visibility
+    print("\n" + "="*80)
+    print("📋 PIPELINE RESPONSE")
+    print("="*80)
+    print(f"Tracking ID:    {response.tracking_id}")
+    print(f"Status:         {response.status}")
+    print(f"Issue Type:     {response.issue_type or 'N/A'}")
+    print(f"Confidence:     {response.confidence if response.confidence else 'N/A'}")
+    print(f"Reporting URL:  {response.reporting_url or 'N/A'}")
+    print(f"Message:        {response.message[:100]}...")
+    print("="*80 + "\n")
+
     return response
+
+# TEST ENDPOINT for BrightData Form Search
+@app.get("/api/test/search-form")
+async def test_search_reporting_form(
+    latitude: float = Query(..., description="GPS latitude"),
+    longitude: float = Query(..., description="GPS longitude"),
+    issue_type: str = Query(..., description="Issue type (e.g., 'Road Crack')")
+):
+    """
+    Test endpoint to search for civic reporting forms
+
+    Example:
+    GET /api/test/search-form?latitude=37.7749&longitude=-122.4194&issue_type=Road%20Crack
+    """
+    try:
+        result = await search_reporting_form(latitude, longitude, issue_type)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ASYNC HELPER FUNCTIONS (implement these)
 async def analyze_with_agent(image_path: str, lat: float, lng: float):
