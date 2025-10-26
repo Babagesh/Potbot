@@ -391,14 +391,11 @@ async def submit_civic_issue(
 
     # Store in database (Supabase)
     try:
-        # Generate public URL for the image that works properly with frontend
+        # Generate public URL for the image that works properly in production
         base_url = os.environ.get('BASE_URL', 'http://localhost:8080')
-        # Make sure image URL is consistent with Next.js proxy configuration
-        absolute_image_path = f"{base_url}/uploads/{processed_filename}" if processed_filename else None
-        # For frontend use, we keep it as a relative path that will work with Next.js proxy
-        image_url = f"/uploads/{processed_filename}" if processed_filename else None
-        print(f"📷 Image URL (frontend): {image_url}")
-        print(f"📷 Absolute image path: {absolute_image_path}")
+        # ALWAYS use absolute URL for database storage (works in both dev and prod)
+        image_url = f"{base_url}/uploads/{processed_filename}" if processed_filename else None
+        print(f"📷 Image URL (absolute): {image_url}")
         
         # Prepare record for database - use the numeric tracking ID format
         db_record = None
@@ -449,9 +446,9 @@ async def submit_civic_issue(
     except Exception as e:
         print(f"⚠️ Database save error: {str(e)}")
     
-    # Add image URL to the API response
+    # Add absolute image URL to the API response
     response_dict = response.model_dump()
-    if processed_filename:
+    if image_url:
         response_dict['image_url'] = image_url
     
     # Keep in memory for API access

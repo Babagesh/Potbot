@@ -101,15 +101,11 @@ export default function MapPage() {
                     }
                   }
                   
-                  // Process image URL to ensure it works
+                  // Use image URL as-is (should be absolute URL from backend)
                   let imageUrl = record.image_url;
                   
-                  // If image URL is absolute with localhost, convert to relative path
-                  if (imageUrl && imageUrl.includes('localhost')) {
-                    const urlParts = imageUrl.split('/');
-                    const filename = urlParts[urlParts.length - 1];
-                    imageUrl = `/uploads/${filename}`;
-                  }
+                  // Keep absolute URLs as-is for production compatibility
+                  // The backend should provide full URLs like https://potbot-lh1p.onrender.com/uploads/filename.jpg
                   
                   return {
                     id: record.tracking_id || `record-${record.id || Math.random().toString(36).slice(2, 11)}`,
@@ -179,15 +175,10 @@ export default function MapPage() {
               }
             }
             
-            // Process image URL to ensure it works
+            // Use image URL as-is (should be absolute URL from backend)
             let imageUrl = record.image_url;
             
-            // If image URL is absolute with localhost, convert to relative path
-            if (imageUrl && imageUrl.includes('localhost')) {
-              const urlParts = imageUrl.split('/');
-              const filename = urlParts[urlParts.length - 1];
-              imageUrl = `/uploads/${filename}`;
-            }
+            // Keep absolute URLs as-is for production compatibility
             
             return {
               id: record.tracking_id || `record-${record.id || Math.random().toString(36).slice(2, 11)}`,

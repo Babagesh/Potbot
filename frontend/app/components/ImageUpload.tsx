@@ -349,25 +349,27 @@ export default function ImageUpload() {
                   {/* Basic Info */}
                   <div>
                     <h5 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-3">File Information</h5>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex flex-col">
                       <span className="text-zinc-600 dark:text-zinc-400">Filename:</span>
-                      <span className="ml-1 text-zinc-900 dark:text-zinc-100">{metadata.filename}</span>
+                      <span className="text-zinc-900 dark:text-zinc-100 break-all">{metadata.filename}</span>
                     </div>
-                    <div>
-                      <span className="text-zinc-600 dark:text-zinc-400">Size:</span>
-                      <span className="ml-1 text-zinc-900 dark:text-zinc-100">
-                        {(metadata.size / (1024 * 1024)).toFixed(2)} MB
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-zinc-600 dark:text-zinc-400">Type:</span>
-                      <span className="ml-1 text-zinc-900 dark:text-zinc-100">{metadata.type}</span>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-zinc-600 dark:text-zinc-400 block">Size:</span>
+                        <span className="text-zinc-900 dark:text-zinc-100">
+                          {(metadata.size / (1024 * 1024)).toFixed(2)} MB
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-zinc-600 dark:text-zinc-400 block">Type:</span>
+                        <span className="text-zinc-900 dark:text-zinc-100">{metadata.type}</span>
+                      </div>
                     </div>
                     {metadata.dimensions && (
                       <div>
-                        <span className="text-zinc-600 dark:text-zinc-400">Dimensions:</span>
-                        <span className="ml-1 text-zinc-900 dark:text-zinc-100">
+                        <span className="text-zinc-600 dark:text-zinc-400 block">Dimensions:</span>
+                        <span className="text-zinc-900 dark:text-zinc-100">
                           {metadata.dimensions.width} × {metadata.dimensions.height}
                         </span>
                       </div>
