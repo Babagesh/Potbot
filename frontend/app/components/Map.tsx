@@ -219,18 +219,20 @@ export default function Map({
                 )}
                 
                 {/* Twitter URL */}
-                {markers.find(m => m.id === selectedMarker)?.twitter_url && (
+                {markers.find(m => m.id === selectedMarker)?.twitter_url && 
+                 markers.find(m => m.id === selectedMarker)?.twitter_url?.startsWith('http') && (
                   <div>
                     <p className="font-semibold text-gray-700">Social Media:</p>
                     <a 
-                      href={markers.find(m => m.id === selectedMarker)?.twitter_url?.startsWith('http') 
-                        ? markers.find(m => m.id === selectedMarker)?.twitter_url 
-                        : `https://twitter.com/KarenAI_app/status/${Date.now()}`}
+                      href={markers.find(m => m.id === selectedMarker)?.twitter_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-500 hover:underline"
+                      className="text-blue-500 hover:underline flex items-center gap-1"
                     >
-                      View Post
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                      </svg>
+                      View on X (Twitter)
                     </a>
                   </div>
                 )}
