@@ -1,6 +1,17 @@
 import { useCallback, useState } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 
+// San Francisco boundaries (approximate)
+const SF_BOUNDS = {
+  north: 37.84,   // North boundary (Marin County line)
+  south: 37.70,   // South boundary (San Mateo County line)
+  west: -122.52,  // West boundary (Pacific Ocean)
+  east: -122.35,  // East boundary (San Francisco Bay)
+};
+
+// San Francisco center coordinates
+const SF_CENTER = { lat: 37.7749, lng: -122.4194 };
+
 interface MapProps {
   // Default center location (can be overridden by markers)
   defaultCenter?: { lat: number; lng: number };
@@ -13,6 +24,7 @@ interface MapProps {
     title?: string;
     status?: 'pending' | 'in_progress' | 'completed';
     info?: string;
+    imageUrl?: string;
   }>;
 }
 
@@ -25,8 +37,8 @@ const containerStyle = {
 
 // Map component using Google Maps API
 export default function Map({
-  defaultCenter = { lat: 37.7749, lng: -122.4194 }, // Default to San Francisco
-  zoom = 10,
+  defaultCenter = SF_CENTER, // Default to San Francisco
+  zoom = 13, // Higher zoom level for San Francisco
   markers = [],
 }: MapProps) {
   // Load Google Maps API
@@ -40,6 +52,14 @@ export default function Map({
 
   // Handle map load
   const onLoad = useCallback(function callback(map: google.maps.Map) {
+    // Restrict the map to San Francisco bounds
+    map.setOptions({
+      restriction: {
+        latLngBounds: SF_BOUNDS,
+        strictBounds: false, // Allow slight panning outside bounds
+      }
+    });
+    
     setMap(map);
   }, []);
 
@@ -78,6 +98,34 @@ export default function Map({
           zoomControl: true,
           streetViewControl: true,
           mapTypeControl: true,
+          // San Francisco style options
+          styles: [
+            {
+              featureType: "water",
+              elementType: "geometry",
+              stylers: [{ color: "#e9e9e9" }, { lightness: 17 }]
+            },
+            {
+              featureType: "landscape",
+              elementType: "geometry",
+              stylers: [{ color: "#f5f5f5" }, { lightness: 20 }]
+            },
+            {
+              featureType: "road.highway",
+              elementType: "geometry.fill",
+              stylers: [{ color: "#ffffff" }, { lightness: 17 }]
+            },
+            {
+              featureType: "administrative",
+              elementType: "geometry.stroke",
+              stylers: [{ color: "#3273dc" }, { lightness: 50 }, { weight: 1.2 }]
+            }
+          ],
+          // Restrict to San Francisco
+          restriction: {
+            latLngBounds: SF_BOUNDS,
+            strictBounds: false
+          },
         }}
       >
         {/* Render markers */}
@@ -101,6 +149,18 @@ export default function Map({
               <h3 className="font-bold text-gray-900">
                 {markers.find(m => m.id === selectedMarker)?.title}
               </h3>
+              
+              {/* Display the image if available */}
+              {markers.find(m => m.id === selectedMarker)?.imageUrl && (
+                <div className="my-2">
+                  <img 
+                    src={markers.find(m => m.id === selectedMarker)?.imageUrl} 
+                    alt="Issue Image" 
+                    className="w-full h-24 object-cover rounded-md mb-2" 
+                  />
+                </div>
+              )}
+              
               <p className="text-sm text-gray-700">
                 {markers.find(m => m.id === selectedMarker)?.info}
               </p>
