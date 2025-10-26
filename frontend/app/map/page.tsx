@@ -27,7 +27,12 @@ const fallbackData: PipelineMarker[] = [
     position: { lat: 37.7749, lng: -122.4194 },
     title: 'Example Road Crack',
     status: 'completed',
-    info: 'This is an example marker showing how reports appear on the map.'
+    info: 'This is an example marker showing how reports appear on the map.',
+    description: 'A large crack in the road surface that poses risk to vehicles and pedestrians.',
+    location_address: '123 Market St, San Francisco, CA',
+    tracking_number: 'SF311-2025-123456',
+    twitter_url: 'https://twitter.com/example/status/123456789',
+    imageUrl: '/example-image.jpg'
   }
 ];
 
@@ -61,9 +66,18 @@ export default function MapPage() {
         
         if (data && data.length > 0) {
           // Map database records to map markers
-          const markers: PipelineMarker[] = data.map((record: PhotoIageRecord) => 
-            mapRecordToMarker(record)
-          );
+          const markers: PipelineMarker[] = data.map((record: PhotoIageRecord) => ({
+            id: record.tracking_id,
+            position: { lat: record.latitude, lng: record.longitude },
+            title: record.category || 'Infrastructure Issue',
+            status: record.twitter_url ? 'completed' : (record.location_address ? 'in_progress' : 'pending'),
+            info: record.description || '',
+            description: record.description,
+            location_address: record.location_address,
+            tracking_number: record.tracking_id,
+            twitter_url: record.twitter_url,
+            imageUrl: record.image_url
+          }));
           setPipelineMarkers(markers);
         } else {
           console.log('No data found in Supabase, using fallback data');
@@ -131,60 +145,6 @@ export default function MapPage() {
           )}
         </div>
         
-        <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Infrastructure Issues in San Francisco</h2>
-          
-          {loading ? (
-            <div className="py-8 text-center">
-              <p>Loading data...</p>
-            </div>
-          ) : error ? (
-            <div className="py-8 text-center text-red-500">
-              <p>{error}</p>
-            </div>
-          ) : pipelineMarkers.length === 0 ? (
-            <div className="py-8 text-center text-gray-500">
-              <p>No infrastructure issues found in the database.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead>
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Issue Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Details</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Location</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {pipelineMarkers.map((marker) => (
-                    <tr key={marker.id}>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {marker.title}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
-                          marker.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                          marker.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                          'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                        }`}>
-                          {marker.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        {marker.info}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-gray-500 dark:text-gray-400">
-                        ({marker.position.lat.toFixed(4)}, {marker.position.lng.toFixed(4)})
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

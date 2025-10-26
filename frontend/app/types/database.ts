@@ -20,6 +20,10 @@ export interface PipelineMarker {
   status: MarkerStatus;
   info: string;
   imageUrl?: string;
+  tracking_number?: string;
+  twitter_url?: string;
+  location_address?: string;
+  description?: string;
 }
 
 // Map database records to map markers
@@ -40,6 +44,10 @@ export function mapRecordToMarker(record: PhotoIageRecord): PipelineMarker {
     title: record.category || 'Infrastructure Issue',
     status: status,
     info: record.description || '',
+    description: record.description,
+    location_address: record.location_address,
+    tracking_number: record.tracking_id,
+    twitter_url: record.twitter_url,
     imageUrl: record.image_url
   };
 }

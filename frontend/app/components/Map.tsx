@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useRef, useEffect } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 
 // San Francisco boundaries (approximate)
@@ -25,6 +25,10 @@ interface MapProps {
     status?: 'pending' | 'in_progress' | 'completed';
     info?: string;
     imageUrl?: string;
+    tracking_number?: string;
+    twitter_url?: string;
+    location_address?: string;
+    description?: string;
   }>;
 }
 
@@ -47,8 +51,10 @@ export default function Map({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
   });
 
+  const mapRef = useRef<google.maps.Map | null>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [selectedMarker, setSelectedMarker] = useState<string | null>(null);
+  const [previousZoom, setPreviousZoom] = useState<number>(zoom);
 
   // Handle map load
   const onLoad = useCallback(function callback(map: google.maps.Map) {
@@ -60,6 +66,7 @@ export default function Map({
       }
     });
     
+    mapRef.current = map;
     setMap(map);
   }, []);
 
@@ -135,36 +142,101 @@ export default function Map({
             position={marker.position}
             title={marker.title}
             icon={getMarkerIcon(marker.status)}
-            onClick={() => setSelectedMarker(marker.id)}
+            onClick={() => {
+              // Save current zoom before zooming in
+              if (map && !selectedMarker) {
+                setPreviousZoom(map.getZoom() || zoom);
+              }
+              
+              // Zoom in on marker
+              if (map && mapRef.current) {
+                mapRef.current.panTo(marker.position);
+                mapRef.current.setZoom(18); // Closer zoom level when selecting a marker
+              }
+              
+              setSelectedMarker(marker.id);
+            }}
           />
         ))}
 
         {/* Render info windows for selected marker */}
-        {selectedMarker && markers.find(m => m.id === selectedMarker)?.info && (
+        {selectedMarker && markers.find(m => m.id === selectedMarker) && (
           <InfoWindow
             position={markers.find(m => m.id === selectedMarker)!.position}
-            onCloseClick={() => setSelectedMarker(null)}
+            onCloseClick={() => {
+              setSelectedMarker(null);
+              
+              // Return to previous zoom level when closing info window
+              if (mapRef.current) {
+                mapRef.current.setZoom(previousZoom);
+              }
+            }}
           >
-            <div className="p-2 max-w-xs">
-              <h3 className="font-bold text-gray-900">
+            <div className="p-3 max-w-sm">
+              <h3 className="font-bold text-lg text-gray-900 mb-2">
                 {markers.find(m => m.id === selectedMarker)?.title}
               </h3>
               
               {/* Display the image if available */}
               {markers.find(m => m.id === selectedMarker)?.imageUrl && (
-                <div className="my-2">
+                <div className="mb-3">
                   <img 
                     src={markers.find(m => m.id === selectedMarker)?.imageUrl} 
                     alt="Issue Image" 
-                    className="w-full h-24 object-cover rounded-md mb-2" 
+                    className="w-full h-32 object-cover rounded-md border border-gray-200" 
                   />
                 </div>
               )}
               
-              <p className="text-sm text-gray-700">
-                {markers.find(m => m.id === selectedMarker)?.info}
-              </p>
-              <div className="mt-2 text-xs inline-block px-2 py-1 rounded-full" 
+              <div className="space-y-2 text-sm">
+                {/* Description */}
+                {markers.find(m => m.id === selectedMarker)?.description && (
+                  <div>
+                    <p className="font-semibold text-gray-700">Description:</p>
+                    <p className="text-gray-600">
+                      {markers.find(m => m.id === selectedMarker)?.description}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Location */}
+                <div>
+                  <p className="font-semibold text-gray-700">Location:</p>
+                  <p className="text-gray-600">
+                    {markers.find(m => m.id === selectedMarker)?.location_address || 
+                     `(${markers.find(m => m.id === selectedMarker)?.position.lat.toFixed(5)}, 
+                       ${markers.find(m => m.id === selectedMarker)?.position.lng.toFixed(5)})`}
+                  </p>
+                </div>
+                
+                {/* Tracking number */}
+                {markers.find(m => m.id === selectedMarker)?.tracking_number && (
+                  <div>
+                    <p className="font-semibold text-gray-700">Tracking Number:</p>
+                    <p className="text-gray-600">
+                      {markers.find(m => m.id === selectedMarker)?.tracking_number}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Twitter URL */}
+                {markers.find(m => m.id === selectedMarker)?.twitter_url && (
+                  <div>
+                    <p className="font-semibold text-gray-700">Social Media Post:</p>
+                    <a 
+                      href={markers.find(m => m.id === selectedMarker)?.twitter_url || '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:underline"
+                    >
+                      View on Twitter
+                    </a>
+                  </div>
+                )}
+              </div>
+              
+              {/* Status badge */}
+              <div className="mt-3 inline-block px-3 py-1 rounded-full text-xs font-medium" 
                    style={{
                      backgroundColor: 
                        markers.find(m => m.id === selectedMarker)?.status === 'completed' ? 'rgb(34, 197, 94)' :
