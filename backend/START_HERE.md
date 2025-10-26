@@ -24,7 +24,7 @@ pip3 install snscrape
 
 ```bash
 # You already have this in your .env:
-GROQ_API_KEY=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
+GROQ_API_KEY=your_groq_api_key_here
 ```
 
 ### **Step 3: Scrape real tweets (5 min)**

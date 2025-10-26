@@ -47,7 +47,7 @@ You now ONLY need Groq:
 
 ```bash
 # Agent #1: Groq Vision API (REQUIRED)
-GROQ_API_KEY=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
+GROQ_API_KEY=your_groq_api_key_here
 
 # Optional settings
 CONFIDENCE_THRESHOLD=0.6
