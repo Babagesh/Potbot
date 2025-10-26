@@ -110,7 +110,9 @@ export default function ImageUpload() {
         formData.append('longitude', '0');
       }
 
-      const response = await fetch('http://127.0.0.1:8000/api/submit-civic-issue', {
+      // Use environment variable for backend URL
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080';
+      const response = await fetch(`${backendUrl}/api/submit-civic-issue`, {
         method: 'POST',
         body: formData,
       });

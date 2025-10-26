@@ -29,10 +29,11 @@ register_heif_opener()
 
 app = FastAPI(title="CivicSight API", version="1.0.0")
 
-# CORS middleware
+# CORS middleware - Use environment variable for allowed origins
+allowed_origins = os.getenv("ALLOW_CORS_ORIGINS", "http://localhost:3000").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[origin.strip() for origin in allowed_origins],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -391,7 +392,7 @@ async def submit_civic_issue(
     # Store in database (Supabase)
     try:
         # Generate public URL for the image that works properly with frontend
-        base_url = os.environ.get('BASE_URL', 'http://localhost:8081')
+        base_url = os.environ.get('BASE_URL', 'http://localhost:8080')
         # Make sure image URL is consistent with Next.js proxy configuration
         absolute_image_path = f"{base_url}/uploads/{processed_filename}" if processed_filename else None
         # For frontend use, we keep it as a relative path that will work with Next.js proxy
