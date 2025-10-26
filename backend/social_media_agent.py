@@ -303,7 +303,12 @@ class SocialMediaAgent:
             }
             
         except Exception as e:
-            print(f"  ❌ Twitter publish failed: {str(e)}")
+            error_msg = str(e)
+            # Handle rate limits gracefully
+            if "429" in error_msg or "Too Many Requests" in error_msg:
+                print(f"  ⏳ Twitter rate limit reached - skipping post")
+            else:
+                print(f"  ❌ Twitter publish failed: {error_msg}")
             return {
                 "success": False,
                 "post_url": None,
