@@ -13,7 +13,7 @@ const nextConfig = {
   },
   // Add rewrites for the backend API
   async rewrites() {
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080';
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:8080';
     console.log('Using backend URL for rewrites:', backendUrl);
     return [
       {
