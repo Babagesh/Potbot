@@ -59,6 +59,17 @@ supabase/.temp
 *.tsbuildinfo
 frontend/next-env.d.ts
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
 # uploads directory
 /uploads
 frontend/uploads/
