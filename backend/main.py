@@ -338,11 +338,12 @@ async def submit_civic_issue(
                             print(f"✅ Posted to social media: {social_post_url}")
                             message = f"Issue submitted! Tracking: {tracking_number}. Posted: {social_post_url}"
                         else:
-                            print(f"⚠️ Social media post failed: {social_media_result.get('error')}")
+                            # Silently skip if social media fails (rate limits, etc.)
+                            pass
 
                     except Exception as e:
-                        print(f"⚠️ Social media agent failed: {str(e)}")
-                        # Continue anyway - social media failure shouldn't fail the whole pipeline
+                        # Silently continue - social media failure shouldn't fail the whole pipeline
+                        pass
 
             else:
                 error = playwright_result.get('error', 'Unknown error')
