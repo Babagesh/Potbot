@@ -68,8 +68,11 @@ class DatabaseHelper:
     
     @staticmethod
     def generate_tracking_id() -> str:
-        """Generate a unique tracking ID for reports."""
-        return f"REPORT-{uuid.uuid4().hex[:8].upper()}"
+        """Generate a unique tracking ID for reports as numeric format."""
+        # Use timestamp and random numbers to generate a unique integer-like tracking ID
+        timestamp = datetime.now().strftime("%y%m%d%H%M")
+        random_suffix = str(uuid.uuid4().int)[-6:]  # Use last 6 digits of UUID integer representation
+        return f"{timestamp}{random_suffix}"
     
     @staticmethod
     def validate_required_fields(record: Dict[str, Any]) -> bool:

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { supabase } from '../lib/supabase';
-import { PhotoIageRecord, PipelineMarker, mapRecordToMarker } from '../types/database';
+import { PhotoIageRecord, PipelineMarker, mapRecordToMarker, MarkerStatus } from '../types/database';
 
 // Dynamically import the Map component to avoid SSR issues with Google Maps
 const Map = dynamic(() => import('../components/Map'), {
@@ -46,7 +46,97 @@ export default function MapPage() {
       try {
         setLoading(true);
         
-        // Fetch data from Supabase
+        // First try the backend API to get the latest data including pending submissions and all DB records
+        try {
+          const apiResponse = await fetch('/api/reports/all');
+          if (apiResponse.ok) {
+            const apiData = await apiResponse.json();
+            
+            if (apiData.reports && apiData.reports.length > 0) {
+              console.log('Fetched data from backend API:', apiData.reports.length, 'records');
+              
+              // Debug all reports before filtering
+              apiData.reports.forEach((record: any, index: number) => {
+                console.log(`Record ${index}:`, {
+                  id: record.id,
+                  tracking_id: record.tracking_id,
+                  category: record.category || record.issue_type,
+                  latitude: record.latitude,
+                  longitude: record.longitude,
+                  inBounds: record.latitude >= SF_MIN_LAT && 
+                            record.latitude <= SF_MAX_LAT && 
+                            record.longitude >= SF_MIN_LNG && 
+                            record.longitude <= SF_MAX_LNG
+                });
+              });
+              
+              // Map API records to map markers, temporarily SKIP the filtering
+              const apiMarkers: PipelineMarker[] = apiData.reports
+                // Show all markers regardless of geographic bounds for debugging
+                //.filter((record: any) => (
+                //  // Filter to San Francisco area
+                //  record.latitude >= SF_MIN_LAT && 
+                //  record.latitude <= SF_MAX_LAT && 
+                //  record.longitude >= SF_MIN_LNG && 
+                //  record.longitude <= SF_MAX_LNG
+                //))
+                // Temporarily show all records
+                .map((record: any) => {
+                  // Skip records with null coordinates
+                  if (record.latitude === null || record.longitude === null) {
+                    console.warn('Skipping record with null coordinates:', record.tracking_id || record.id);
+                    // Use default SF coordinates for records with null coordinates
+                    record.latitude = 37.7749; // Default San Francisco latitude
+                    record.longitude = -122.4194; // Default San Francisco longitude
+                  }
+                  
+                  // Extract tracking number from description if available
+                  let extractedTrackingNumber = record.tracking_number || record.tracking_id;
+                  
+                  if (record.description && record.description.includes('Tracking number:')) {
+                    const match = record.description.match(/Tracking number:\s*(\d+)/);
+                    if (match && match[1]) {
+                      extractedTrackingNumber = match[1];
+                      console.log('Extracted tracking number from description:', extractedTrackingNumber);
+                    }
+                  }
+                  
+                  // Process image URL to ensure it works
+                  let imageUrl = record.image_url;
+                  
+                  // If image URL is absolute with localhost, convert to relative path
+                  if (imageUrl && imageUrl.includes('localhost')) {
+                    const urlParts = imageUrl.split('/');
+                    const filename = urlParts[urlParts.length - 1];
+                    imageUrl = `/uploads/${filename}`;
+                  }
+                  
+                  return {
+                    id: record.tracking_id || `record-${record.id || Math.random().toString(36).slice(2, 11)}`,
+                    position: { lat: Number(record.latitude), lng: Number(record.longitude) },
+                    title: record.category || record.issue_type || 'Infrastructure Issue',
+                    status: determineStatus(record),
+                    info: record.description || '',
+                    description: record.description || record.message,
+                    location_address: record.location_address || record.location_description,
+                    tracking_number: extractedTrackingNumber,
+                    twitter_url: record.social_post_url || record.twitter_url,
+                    imageUrl: imageUrl || (record.image_path ? `/uploads/${record.image_path.split('/').pop()}` : undefined)
+                  };
+                });
+                
+              if (apiMarkers.length > 0) {
+                setPipelineMarkers(apiMarkers);
+                setLoading(false);
+                return;
+              }
+            }
+          }
+        } catch (apiError) {
+          console.warn('Error fetching from API, falling back to Supabase:', apiError);
+        }
+        
+        // If API fetch fails or returns no data, fetch directly from Supabase
         const { data, error } = await supabase
           .from('PhotoIage')
           .select('*')
@@ -57,7 +147,7 @@ export default function MapPage() {
           .lte('longitude', SF_MAX_LNG);
         
         if (error) {
-          console.error('Error fetching data:', error);
+          console.error('Error fetching data from Supabase:', error);
           setError('Failed to load map data');
           // Use fallback data if there's an error
           setPipelineMarkers(fallbackData);
@@ -66,18 +156,52 @@ export default function MapPage() {
         
         if (data && data.length > 0) {
           // Map database records to map markers
-          const markers: PipelineMarker[] = data.map((record: PhotoIageRecord) => ({
-            id: record.tracking_id,
-            position: { lat: record.latitude, lng: record.longitude },
-            title: record.category || 'Infrastructure Issue',
-            status: record.twitter_url ? 'completed' : (record.location_address ? 'in_progress' : 'pending'),
-            info: record.description || '',
-            description: record.description,
-            location_address: record.location_address,
-            tracking_number: record.tracking_id,
-            twitter_url: record.twitter_url,
-            imageUrl: record.image_url
-          }));
+          // Debug Supabase records
+          console.log('Supabase records:', data);
+          
+          const markers: PipelineMarker[] = data.map((record: PhotoIageRecord) => {
+            // Handle null coordinates
+            if (record.latitude === null || record.longitude === null) {
+              console.warn('Supabase record has null coordinates:', record.tracking_id || record.id);
+              // Use default SF coordinates for records with null coordinates
+              record.latitude = 37.7749; // Default San Francisco latitude
+              record.longitude = -122.4194; // Default San Francisco longitude
+            }
+            
+            // Extract tracking number from description if available
+            let extractedTrackingNumber = record.tracking_id;
+            
+            if (record.description && record.description.includes('Tracking number:')) {
+              const match = record.description.match(/Tracking number:\s*(\d+)/);
+              if (match && match[1]) {
+                extractedTrackingNumber = match[1];
+                console.log('Extracted tracking number from Supabase description:', extractedTrackingNumber);
+              }
+            }
+            
+            // Process image URL to ensure it works
+            let imageUrl = record.image_url;
+            
+            // If image URL is absolute with localhost, convert to relative path
+            if (imageUrl && imageUrl.includes('localhost')) {
+              const urlParts = imageUrl.split('/');
+              const filename = urlParts[urlParts.length - 1];
+              imageUrl = `/uploads/${filename}`;
+            }
+            
+            return {
+              id: record.tracking_id || `record-${record.id || Math.random().toString(36).slice(2, 11)}`,
+              position: { lat: Number(record.latitude), lng: Number(record.longitude) },
+              title: record.category || 'Infrastructure Issue',
+              status: record.twitter_url ? 'completed' : (record.location_address ? 'in_progress' : 'pending'),
+              info: record.description || '',
+              description: record.description,
+              location_address: record.location_address,
+              tracking_number: extractedTrackingNumber,
+              twitter_url: record.twitter_url,
+              imageUrl: imageUrl
+            };
+          });
           setPipelineMarkers(markers);
         } else {
           console.log('No data found in Supabase, using fallback data');
@@ -90,6 +214,16 @@ export default function MapPage() {
       } finally {
         setLoading(false);
       }
+    }
+    
+    // Helper function to determine status based on record fields
+    function determineStatus(record: any): MarkerStatus {
+      if (record.status === 'completed' || record.twitter_url || record.social_post_url) {
+        return 'completed';
+      } else if (record.status === 'in_progress' || record.location_address || record.tracking_number) {
+        return 'in_progress';
+      }
+      return 'pending';
     }
     
     fetchPipelineData();

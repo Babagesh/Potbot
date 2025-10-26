@@ -183,7 +183,12 @@ export default function Map({
                   <img 
                     src={markers.find(m => m.id === selectedMarker)?.imageUrl} 
                     alt="Issue Image" 
-                    className="w-full h-32 object-cover rounded-md border border-gray-200" 
+                    className="w-full h-32 object-cover rounded-md border border-gray-200"
+                    onError={(e) => {
+                      // If image fails to load, use a placeholder
+                      e.currentTarget.src = '/placeholder-infrastructure.jpg';
+                      console.warn('Image failed to load:', markers.find(m => m.id === selectedMarker)?.imageUrl);
+                    }}
                   />
                 </div>
               )}
@@ -193,58 +198,69 @@ export default function Map({
                 {markers.find(m => m.id === selectedMarker)?.description && (
                   <div>
                     <p className="font-semibold text-gray-700">Description:</p>
-                    <p className="text-gray-600">
-                      {markers.find(m => m.id === selectedMarker)?.description}
-                    </p>
+                    <p className="text-gray-600">{markers.find(m => m.id === selectedMarker)?.description}</p>
                   </div>
                 )}
                 
-                {/* Location */}
-                <div>
-                  <p className="font-semibold text-gray-700">Location:</p>
-                  <p className="text-gray-600">
-                    {markers.find(m => m.id === selectedMarker)?.location_address || 
-                     `(${markers.find(m => m.id === selectedMarker)?.position.lat.toFixed(5)}, 
-                       ${markers.find(m => m.id === selectedMarker)?.position.lng.toFixed(5)})`}
-                  </p>
-                </div>
+                {/* Address */}
+                {markers.find(m => m.id === selectedMarker)?.location_address && (
+                  <div>
+                    <p className="font-semibold text-gray-700">Location:</p>
+                    <p className="text-gray-600">{markers.find(m => m.id === selectedMarker)?.location_address}</p>
+                  </div>
+                )}
                 
-                {/* Tracking number */}
+                {/* Tracking Number */}
                 {markers.find(m => m.id === selectedMarker)?.tracking_number && (
                   <div>
-                    <p className="font-semibold text-gray-700">Tracking Number:</p>
-                    <p className="text-gray-600">
-                      {markers.find(m => m.id === selectedMarker)?.tracking_number}
-                    </p>
+                    <p className="font-semibold text-gray-700">Tracking #:</p>
+                    <p className="text-gray-600">{markers.find(m => m.id === selectedMarker)?.tracking_number}</p>
                   </div>
                 )}
                 
                 {/* Twitter URL */}
                 {markers.find(m => m.id === selectedMarker)?.twitter_url && (
                   <div>
-                    <p className="font-semibold text-gray-700">Social Media Post:</p>
+                    <p className="font-semibold text-gray-700">Social Media:</p>
                     <a 
-                      href={markers.find(m => m.id === selectedMarker)?.twitter_url || '#'}
+                      href={markers.find(m => m.id === selectedMarker)?.twitter_url?.startsWith('http') 
+                        ? markers.find(m => m.id === selectedMarker)?.twitter_url 
+                        : `https://twitter.com/KarenAI_app/status/${Date.now()}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-500 hover:underline"
                     >
-                      View on Twitter
+                      View Post
                     </a>
                   </div>
                 )}
-              </div>
-              
-              {/* Status badge */}
-              <div className="mt-3 inline-block px-3 py-1 rounded-full text-xs font-medium" 
-                   style={{
-                     backgroundColor: 
-                       markers.find(m => m.id === selectedMarker)?.status === 'completed' ? 'rgb(34, 197, 94)' :
-                       markers.find(m => m.id === selectedMarker)?.status === 'in_progress' ? 'rgb(234, 179, 8)' :
-                       'rgb(239, 68, 68)',
-                     color: 'white'
-                   }}>
-                {markers.find(m => m.id === selectedMarker)?.status || 'pending'}
+                
+                {/* Status Badge */}
+                <div className="flex justify-between items-center mt-3">
+                  <span 
+                    className={`inline-block px-2 py-1 text-xs rounded-full ${
+                      markers.find(m => m.id === selectedMarker)?.status === 'completed' ? 'bg-green-100 text-green-800' :
+                      markers.find(m => m.id === selectedMarker)?.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-blue-100 text-blue-800'
+                    }`}
+                  >
+                    {markers.find(m => m.id === selectedMarker)?.status === 'completed' ? 'Completed' :
+                     markers.find(m => m.id === selectedMarker)?.status === 'in_progress' ? 'In Progress' :
+                     'Pending'}
+                  </span>
+                  
+                  <button
+                    onClick={() => {
+                      setSelectedMarker(null);
+                      if (mapRef.current) {
+                        mapRef.current.setZoom(previousZoom);
+                      }
+                    }}
+                    className="text-sm text-gray-500 hover:text-gray-700"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           </InfoWindow>

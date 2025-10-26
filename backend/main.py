@@ -1,5 +1,7 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional, List
 import os
@@ -15,6 +17,8 @@ from brightdata_search import search_reporting_form
 from playwright_integration import submit_to_sfgov
 from form_submission_agent import submit_civic_issue_to_city
 from social_media_agent import publish_civic_issue_to_social_media
+from database_helper import DatabaseHelper
+from supabase_client import SupabaseDB
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -33,6 +37,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount static file server for uploads
+uploads_dir = os.path.join(os.path.dirname(__file__), "uploads")
+os.makedirs(uploads_dir, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
 # Create uploads folder
 os.makedirs("uploads", exist_ok=True)
@@ -134,8 +143,8 @@ async def submit_civic_issue(
     # Process mobile image (handles HEIC, JPEG, etc.)
     processed_filename, file_path = process_mobile_image(image)
 
-    # Generate unique tracking ID
-    tracking_id = f"REPORT-{uuid.uuid4().hex[:8].upper()}"
+    # Generate unique tracking ID as UUID
+    tracking_id = str(uuid.uuid4())
 
     print("\n" + "="*80)
     print(f"🚀 STARTING PIPELINE: {tracking_id}")
@@ -378,8 +387,73 @@ async def submit_civic_issue(
             created_at=datetime.now()
         )
 
-    # Store in database (in-memory for now)
-    reports_db[tracking_id] = response.model_dump()
+    # Store in database (Supabase)
+    try:
+        # Generate public URL for the image that works properly with frontend
+        base_url = os.environ.get('BASE_URL', 'http://localhost:8081')
+        # Make sure image URL is consistent with Next.js proxy configuration
+        absolute_image_path = f"{base_url}/uploads/{processed_filename}" if processed_filename else None
+        # For frontend use, we keep it as a relative path that will work with Next.js proxy
+        image_url = f"/uploads/{processed_filename}" if processed_filename else None
+        print(f"📷 Image URL (frontend): {image_url}")
+        print(f"📷 Absolute image path: {absolute_image_path}")
+        
+        # Prepare record for database - use the numeric tracking ID format
+        db_record = None
+        try:
+            # Use the tracking ID directly - we've modified the schema to accept TEXT instead of UUID
+            db_tracking_id = response.tracking_id
+            
+            # If tracking number is available from form submission, use that as tracking_id
+            if response.tracking_number:
+                db_tracking_id = response.tracking_number
+            
+            # Try to extract numeric tracking number from description text (like "101002861293")
+            elif response.message and "Tracking number:" in response.message:
+                try:
+                    # Extract the tracking number using a simple pattern match
+                    import re
+                    match = re.search(r'Tracking number:\s*(\d+)', response.message)
+                    if match:
+                        db_tracking_id = match.group(1)
+                        print(f"📌 Extracted tracking number from message: {db_tracking_id}")
+                except Exception as extract_err:
+                    print(f"⚠️ Failed to extract tracking number from message: {str(extract_err)}")
+                    # Keep the original tracking_id
+            
+            print(f"ℹ️ Using tracking ID for database: {db_tracking_id}")
+            
+            db_record = DatabaseHelper.prepare_record_for_database(
+                tracking_id=db_tracking_id,
+                latitude=latitude,
+                longitude=longitude,
+                category=response.issue_type or 'Unknown',
+                description=response.message,
+                # Add additional fields with proper URLs
+                image_url=image_url,
+                location_address=response.location_description,
+                twitter_url=response.social_post_url
+            )
+        except Exception as e:
+            print(f"⚠️ Error preparing database record: {str(e)}")
+            db_record = None
+        
+        # Save to Supabase
+        if DatabaseHelper.validate_required_fields(db_record):
+            saved_record = SupabaseDB.insert_record(db_record)
+            print(f"✅ Record saved to Supabase: {saved_record}")
+        else:
+            print(f"⚠️ Record validation failed, not saved to database")
+    except Exception as e:
+        print(f"⚠️ Database save error: {str(e)}")
+    
+    # Add image URL to the API response
+    response_dict = response.model_dump()
+    if processed_filename:
+        response_dict['image_url'] = image_url
+    
+    # Keep in memory for API access
+    reports_db[tracking_id] = response_dict
 
     # Print final pipeline response for visibility
     print("\n" + "="*80)
@@ -454,7 +528,51 @@ def get_report_status(report_id: str):
 @app.get("/api/reports")
 def get_all_reports():
     """Get all reports for map visualization"""
-    return {"reports": list(reports_db.values()), "total": len(reports_db)}
+    try:
+        # Get records from Supabase
+        db_records = SupabaseDB.get_all_records()
+        if db_records:
+            print(f"✅ Retrieved {len(db_records)} records from database")
+            return {"reports": db_records, "total": len(db_records)}
+        else:
+            # Fall back to in-memory if database is empty
+            print("⚠️ No records in database, using in-memory data")
+            return {"reports": list(reports_db.values()), "total": len(reports_db)}
+    except Exception as e:
+        print(f"⚠️ Error getting records from database: {str(e)}")
+        # Fall back to in-memory
+        return {"reports": list(reports_db.values()), "total": len(reports_db)}
+
+@app.get("/api/reports/all")
+async def get_reports():
+    """Get all submitted reports (from both memory and database)"""
+    # First get reports from memory
+    memory_reports = list(reports_db.values())
+    
+    # Then get reports from Supabase database
+    try:
+        db_records = SupabaseDB.get_all_records()
+        print(f"Retrieved {len(db_records)} records from Supabase")
+        
+        # Combine records, prioritizing memory records
+        combined_records = memory_reports.copy()
+        
+        # Add database records if not already in memory
+        memory_tracking_ids = {r.get('tracking_id') for r in memory_reports}
+        for db_record in db_records:
+            if db_record.get('tracking_id') not in memory_tracking_ids:
+                # Convert database record to match memory format
+                record_dict = dict(db_record)
+                record_dict['issue_type'] = record_dict.get('category')
+                record_dict['message'] = record_dict.get('description')
+                combined_records.append(record_dict)
+        
+        return {"reports": combined_records}
+    
+    except Exception as e:
+        print(f"Error fetching reports from database: {str(e)}")
+        # Fall back to memory-only reports
+        return {"reports": memory_reports}
 
 @app.get("/api/analytics")
 def get_analytics():
